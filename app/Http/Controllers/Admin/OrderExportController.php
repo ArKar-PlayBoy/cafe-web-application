@@ -10,6 +10,8 @@ class OrderExportController extends Controller
 {
     public function exportCsv(Order $order)
     {
+        $this->authorize('orders.view');
+
         $order->load('user', 'items.menuItem');
 
         $filename = 'order_'.$order->id.'.csv';
@@ -43,6 +45,8 @@ class OrderExportController extends Controller
 
     public function exportAllCsv(Request $request)
     {
+        $this->authorize('orders.view');
+
         $query = Order::with('user', 'items.menuItem')->latest();
 
         if ($request->filled('status')) {

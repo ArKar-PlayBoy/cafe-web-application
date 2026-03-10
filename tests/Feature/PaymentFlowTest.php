@@ -36,6 +36,8 @@ it('can checkout with cash on delivery (COD)', function () {
 
     $response = $this->actingAs($this->user)->post(route('checkout.store'), [
         'payment_method' => 'cod',
+        'delivery_address' => '123 Main Street, Yangon',
+        'delivery_phone' => '09123456789',
     ]);
 
     $order = Order::where('user_id', $this->user->id)->latest()->first();
@@ -43,7 +45,10 @@ it('can checkout with cash on delivery (COD)', function () {
     expect($order)->not->toBeNull()
         ->and($order->total)->toEqual(20.00)
         ->and($order->payment_method)->toEqual('cod')
-        ->and($order->status)->toEqual('pending');
+        ->and($order->status)->toEqual('pending')
+        ->and($order->delivery_address)->toEqual('123 Main Street, Yangon')
+        ->and($order->delivery_phone)->toEqual('09123456789')
+        ->and($order->payment_reference)->not->toBeNull();
 
     $response->assertRedirect(route('orders.show', $order->id));
     $response->assertSessionHas('success');

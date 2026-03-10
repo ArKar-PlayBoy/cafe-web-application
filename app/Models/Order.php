@@ -24,12 +24,23 @@ class Order extends Model
         'payment_verified_at',
         'payment_verified_by',
         'cancelled_by',
+        'delivery_address',
+        'delivery_phone',
+        'delivery_status',
+        'delivery_failed_reason',
+        'delivered_at',
     ];
 
     protected $casts = [
         'total' => 'decimal:2',
         'payment_verified_at' => 'datetime',
+        'delivered_at' => 'datetime',
     ];
+
+    public const DELIVERY_STATUS_PENDING = 'pending';
+    public const DELIVERY_STATUS_OUT_FOR_DELIVERY = 'out_for_delivery';
+    public const DELIVERY_STATUS_DELIVERED = 'delivered';
+    public const DELIVERY_STATUS_FAILED = 'failed';
 
     public function user(): BelongsTo
     {
@@ -54,5 +65,55 @@ class Order extends Model
     public function canceller(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function isCOD(): bool
+    {
+        return $this->payment_method === 'cod';
+    }
+
+    public function needsDelivery(): bool
+    {
+        return $this->isCOD();
+    }
+
+    public function canStartDelivery(): bool
+    {
+        return $this->isCOD() 
+            && $this->status === 'ready' 
+            && $this->delivery_status === self::DELIVERY_STATUS_PENDING;
+    }
+
+    public function canCollectCash(): bool
+    {
+        return $this->isCOD() 
+            && $this->delivery_status === self::DELIVERY_STATUS_OUT_FOR_DELIVERY
+            && !in_array($this->payment_status, ['verified', 'paid']);
+    }
+
+    public function markAsOutForDelivery(): bool
+    {
+        return $this->update([
+            'delivery_status' => self::DELIVERY_STATUS_OUT_FOR_DELIVERY,
+        ]);
+    }
+
+    public function markAsDelivered(): bool
+    {
+        return $this->update([
+            'delivery_status' => self::DELIVERY_STATUS_DELIVERED,
+            'payment_status' => 'verified',
+            'payment_reference' => 'COD-' . $this->id . '-COLLECTED-' . time(),
+            'payment_verified_at' => now(),
+            'delivered_at' => now(),
+        ]);
+    }
+
+    public function markAsFailed(string $reason): bool
+    {
+        return $this->update([
+            'delivery_status' => self::DELIVERY_STATUS_FAILED,
+            'delivery_failed_reason' => $reason,
+        ]);
     }
 }

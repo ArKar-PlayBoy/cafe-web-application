@@ -32,6 +32,9 @@ class EnsureUserIsStaff
             return redirect()->route('staff.login')->with('error', 'Your account has been suspended.');
         }
 
+        // Set user for Gate so @can directives work properly
+        Auth::setUser($user);
+
         return $next($request);
     }
 }

@@ -76,11 +76,40 @@ class OrderController extends Controller
             return back()->with('error', 'Only pending orders can be cancelled.');
         }
 
+        if ($order->delivery_status === Order::DELIVERY_STATUS_OUT_FOR_DELIVERY) {
+            return back()->with('error', 'Order is already out for delivery and cannot be cancelled. Please contact support.');
+        }
+
         $order->update([
             'status' => 'cancelled',
             'cancelled_by' => auth()->id(),
         ]);
 
         return redirect()->route('orders')->with('success', 'Order cancelled successfully.');
+    }
+
+    public function viewScreenshot(Order $order)
+    {
+        if ($order->user_id !== auth()->id()) {
+            abort(403);
+        }
+
+        if (!$order->payment_screenshot) {
+            abort(404);
+        }
+
+        // Sanitize path to prevent directory traversal
+        $filename = basename($order->payment_screenshot);
+        $directory = dirname($order->payment_screenshot);
+        // Only allow paths within the expected storage directory
+        $safePath = storage_path('app/public/' . $directory . '/' . $filename);
+        $realPath = realpath($safePath);
+        $allowedBase = realpath(storage_path('app/public'));
+
+        if (!$realPath || !$allowedBase || !str_starts_with($realPath, $allowedBase)) {
+            abort(404);
+        }
+
+        return response()->file($realPath);
     }
 }

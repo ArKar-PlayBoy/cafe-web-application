@@ -13,6 +13,8 @@ class StockController extends Controller
 {
     public function index()
     {
+        $this->authorize('stock.view');
+
         $stockItems = StockItem::with(['alerts' => fn ($q) => $q->where('is_read', false)])->orderBy('name')->get();
 
         return view('admin.stock.index', compact('stockItems'));
@@ -20,11 +22,15 @@ class StockController extends Controller
 
     public function create()
     {
+        $this->authorize('stock.manage');
+
         return view('admin.stock.create');
     }
 
     public function store(Request $request)
     {
+        $this->authorize('stock.manage');
+
         $request->validate([
             'name' => 'required|string|max:255|unique:stock_items,name',
             'current_quantity' => 'required|integer|min:0',
@@ -43,11 +49,15 @@ class StockController extends Controller
 
     public function edit(StockItem $stock)
     {
+        $this->authorize('stock.manage');
+
         return view('admin.stock.edit', compact('stock'));
     }
 
     public function update(Request $request, StockItem $stock)
     {
+        $this->authorize('stock.manage');
+
         $request->validate([
             'name' => 'required|string|max:255|unique:stock_items,name,'.$stock->id,
             'current_quantity' => 'required|integer|min:0',
@@ -64,12 +74,14 @@ class StockController extends Controller
 
             return redirect()->route('admin.stock.index')->with('success', 'Stock item updated.');
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to update stock item: '.$e->getMessage())->withInput();
+            return back()->with('error', 'Failed to update stock item. Please try again.')->withInput();
         }
     }
 
     public function destroy(StockItem $stock)
     {
+        $this->authorize('stock.manage');
+
         $stock->delete();
 
         return redirect()->route('admin.stock.index')->with('success', 'Stock item deleted.');
@@ -77,6 +89,8 @@ class StockController extends Controller
 
     public function movements(StockItem $stock)
     {
+        $this->authorize('stock.view');
+
         $movements = StockService::getStockHistory($stock->id);
 
         return view('admin.stock.movements', compact('stock', 'movements'));
@@ -84,6 +98,8 @@ class StockController extends Controller
 
     public function recipe(StockItem $stock)
     {
+        $this->authorize('stock.manage');
+
         $menuItems = MenuItem::with('stockItems')->get();
 
         return view('admin.stock.recipe', compact('stock', 'menuItems'));
@@ -91,6 +107,8 @@ class StockController extends Controller
 
     public function updateRecipe(Request $request, StockItem $stock)
     {
+        $this->authorize('stock.manage');
+
         $request->validate(['recipes' => 'required|array', 'recipes.*' => 'nullable|integer|min:0']);
 
         $stock->menuItems()->detach();
@@ -129,6 +147,8 @@ class StockController extends Controller
 
     public function addStock(Request $request, StockItem $stock)
     {
+        $this->authorize('stock.manage');
+
         $request->validate([
             'quantity' => 'required|integer|min:1',
             'cost' => 'nullable|numeric|min:0',
@@ -143,6 +163,8 @@ class StockController extends Controller
 
     public function adjustStock(Request $request, StockItem $stock)
     {
+        $this->authorize('stock.adjust');
+
         $request->validate([
             'current_quantity' => 'required|integer|min:0',
             'note' => 'nullable|string|max:255',
