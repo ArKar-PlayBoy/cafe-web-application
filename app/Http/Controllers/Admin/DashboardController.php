@@ -7,6 +7,7 @@ use App\Models\CafeTable;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\Reservation;
+use App\Models\StockItem;
 use App\Models\User;
 
 class DashboardController extends Controller
@@ -23,7 +24,7 @@ class DashboardController extends Controller
             'totalMenuItems' => MenuItem::count(),
             'totalTables' => CafeTable::count(),
             'pendingReservations' => Reservation::where('status', 'pending')->count(),
-            'lowStockItems' => MenuItem::where('stock', '<=', 5)->count(),
+            'lowStockItems' => StockItem::whereColumn('current_quantity', '<=', 'min_quantity')->count(),
         ];
 
         $recentOrders = Order::with('user', 'items')->latest()->take(5)->get();
