@@ -9,35 +9,42 @@
     @csrf
     
     <div class="mb-4">
-        <label class="block text-sm font-medium mb-2">Name</label>
-        <input type="text" name="name" class="w-full border rounded px-3 py-2 dark:bg-gray-800 dark:border-gray-700" required>
+        <label class="block text-sm font-medium mb-2" for="name">Name</label>
+        <input type="text" name="name" id="name" class="w-full border rounded px-3 py-2 dark:bg-gray-800 dark:border-gray-700" required autocomplete="off">
     </div>
 
     <div class="grid grid-cols-2 gap-4 mb-4">
         <div>
-            <label class="block text-sm font-medium mb-2">Initial Quantity</label>
-            <input type="number" name="current_quantity" class="w-full border rounded px-3 py-2 dark:bg-gray-800 dark:border-gray-700" value="0" required>
+            <label class="block text-sm font-medium mb-2" for="current_quantity">Initial Quantity</label>
+            <input type="number" name="current_quantity" id="current_quantity" class="w-full border rounded px-3 py-2 dark:bg-gray-800 dark:border-gray-700" value="0" required autocomplete="off">
         </div>
         <div>
-            <label class="block text-sm font-medium mb-2">Min Quantity (Alert Level)</label>
-            <input type="number" name="min_quantity" class="w-full border rounded px-3 py-2 dark:bg-gray-800 dark:border-gray-700" value="10" required>
+            <label class="block text-sm font-medium mb-2" for="min_quantity">Min Quantity (Alert Level)</label>
+            <input type="number" name="min_quantity" id="min_quantity" class="w-full border rounded px-3 py-2 dark:bg-gray-800 dark:border-gray-700" value="10" required autocomplete="off">
         </div>
     </div>
 
     <div class="grid grid-cols-2 gap-4 mb-4">
         <div>
-            <label class="block text-sm font-medium mb-2">Barcode (Optional)</label>
-            <input type="text" name="barcode" class="w-full border rounded px-3 py-2 dark:bg-gray-800 dark:border-gray-700">
+            <label class="block text-sm font-medium mb-2" for="barcode">Barcode (Optional)</label>
+            <input type="text" name="barcode" id="barcode" class="w-full border rounded px-3 py-2 dark:bg-gray-800 dark:border-gray-700" autocomplete="off">
         </div>
         <div>
-            <label class="block text-sm font-medium mb-2">Bin Location</label>
-            <input type="text" name="bin_location" class="w-full border rounded px-3 py-2 dark:bg-gray-800 dark:border-gray-700" placeholder="e.g., Walk-in Fridge">
+            <label class="block text-sm font-medium mb-2" for="bin_location">Bin Location</label>
+            <select name="bin_location" id="bin_location" class="w-full border rounded px-3 py-2 dark:bg-gray-800 dark:border-gray-700" autocomplete="off">
+                {{-- <p>Select Location</p> --}}
+                <option value="Walk-in Fridge">Walk-in Fridge</option>
+                <option value="Freezer">Freezer</option>
+                <option value="Dry Storage A">Dry Storage A</option>
+                <option value="Dry Storage B">Dry Storage B</option>
+                <option value="Storage Room">Storage Room</option>
+            </select>
         </div>
     </div>
 
     <div class="mb-4">
-        <label class="block text-sm font-medium mb-2">Category</label>
-        <select name="category" class="w-full border rounded px-3 py-2 dark:bg-gray-800 dark:border-gray-700" required>
+        <label class="block text-sm font-medium mb-2" for="category">Category</label>
+        <select name="category" id="category" class="w-full border rounded px-3 py-2 dark:bg-gray-800 dark:border-gray-700" required autocomplete="off">
             <option value="ingredient">Ingredient</option>
             <option value="supply">Supply</option>
         </select>

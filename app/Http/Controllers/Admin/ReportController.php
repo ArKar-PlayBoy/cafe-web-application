@@ -59,7 +59,8 @@ class ReportController extends Controller
             $dateRange = 'last_30_days';
         }
 
-        $limit = $request->get('limit', 10);
+        $limit = (int) $request->get('limit', 10);
+        $limit = max(1, min($limit, 100));
         $popularItems = $this->reportService->getPopularItems($startDate, $endDate, $limit);
 
         return view('admin.reports.items', compact('popularItems', 'dateRange', 'dateOptions', 'limit', 'startDate', 'endDate'));

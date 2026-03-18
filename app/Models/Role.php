@@ -7,6 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property string $name
+ * @property string $slug
+ * @property string $description
+ * @property bool $is_super_admin
+ */
 class Role extends Model
 {
     use HasFactory;
@@ -27,24 +33,10 @@ class Role extends Model
         return $this->belongsToMany(Permission::class, 'role_permission');
     }
 
-    public function hasPermission(string $permission): bool
-    {
-        if ($this->is_super_admin) {
-            return true;
-        }
-
-        return $this->permissions()->where('slug', $permission)->exists();
-    }
-
-    public function hasAnyPermission(array $permissions): bool
-    {
-        if ($this->is_super_admin) {
-            return true;
-        }
-
-        return $this->permissions()->whereIn('slug', $permissions)->exists();
-    }
-
+    /**
+     * Check if role is super admin
+     * @return bool
+     */
     public function isSuperAdmin(): bool
     {
         return $this->is_super_admin;

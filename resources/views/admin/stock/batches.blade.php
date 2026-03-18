@@ -26,8 +26,16 @@
                 <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-gray-100">{{ $batch->stockItem->name }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-gray-900 dark:text-gray-100 font-bold">{{ $batch->quantity }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400">${{ number_format($batch->cost, 2) ?? '-' }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400">{{ $batch->received_date }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400">{{ $batch->expiry_date ?? 'No expiry' }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400">{{ $batch->received_date->format('M d, Y') }}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-gray-400">
+                    @if($batch->expiry_date)
+                        <span class="@if($batch->isExpired()) text-red-600 @elseif($batch->isExpiringSoon(7)) text-yellow-600 @endif">
+                            {{ $batch->expiry_date->format('M d, Y') }}
+                        </span>
+                    @else
+                        -
+                    @endif
+                </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     @if($batch->isExpired())
                         <span class="px-2 py-1 text-xs rounded bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">Expired</span>

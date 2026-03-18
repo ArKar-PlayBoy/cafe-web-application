@@ -28,8 +28,17 @@
                     @if($reservation->table)
                     <p class="text-gray-600 dark:text-gray-400">Table: {{ $reservation->table->table_number }}</p>
                     @endif
+                    @if($reservation->customer_phone)
+                    <p class="text-gray-600 dark:text-gray-400">Phone: {{ $reservation->customer_phone }}</p>
+                    @endif
+                    @if($reservation->notes)
+                    <p class="text-gray-600 dark:text-gray-400">Notes: {{ $reservation->notes }}</p>
+                    @endif
+                    @if($reservation->status === 'cancelled' && $reservation->cancellation_reason)
+                    <p class="mt-2 text-red-600 dark:text-red-400">Reason: {{ $reservation->cancellation_reason }}</p>
+                    @endif
                 </div>
-                <span class="px-3 py-1 text-sm rounded-full {{ $reservation->status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : ($reservation->status === 'confirmed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300') }}">
+                <span class="px-3 py-1 text-sm rounded-full {{ $reservation->status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : ($reservation->status === 'confirmed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : ($reservation->status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300')) }}">
                     {{ ucfirst($reservation->status) }}
                 </span>
             </div>

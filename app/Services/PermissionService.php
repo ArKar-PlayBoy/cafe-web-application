@@ -34,9 +34,10 @@ class PermissionService
             'label' => 'Stock Management',
             'permissions' => [
                 'stock.view' => 'View Stock',
-                'stock.manage' => 'Manage Stock',
+                'stock.manage' => 'Manage Stock (Create/Edit)',
                 'stock.adjust' => 'Adjust Stock',
                 'stock.waste' => 'Log Waste',
+                'stock.delete' => 'Delete Stock Items',
             ],
         ],
         'users' => [

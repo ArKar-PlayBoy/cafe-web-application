@@ -21,11 +21,14 @@ class StockController extends Controller
 
     public function addStockForm(StockItem $stock)
     {
+        $this->authorize('stock.manage');
+
         return view('staff.stock.in', compact('stock'));
     }
 
     public function addStock(Request $request, StockItem $stock)
     {
+        $this->authorize('stock.manage');
         $request->validate([
             'quantity' => 'required|integer|min:1',
             'cost' => 'nullable|numeric|min:0',
@@ -40,11 +43,13 @@ class StockController extends Controller
 
     public function wasteForm(StockItem $stock)
     {
+        $this->authorize('stock.waste');
         return view('staff.stock.waste', compact('stock'));
     }
 
     public function logWaste(Request $request, StockItem $stock)
     {
+        $this->authorize('stock.waste');
         $request->validate([
             'quantity' => 'required|integer|min:1|max:'.$stock->current_quantity,
             'reason' => 'required|string|max:255',
@@ -58,11 +63,13 @@ class StockController extends Controller
 
     public function adjustForm(StockItem $stock)
     {
+        $this->authorize('stock.adjust');
         return view('staff.stock.adjust', compact('stock'));
     }
 
     public function adjustStock(Request $request, StockItem $stock)
     {
+        $this->authorize('stock.adjust');
         $request->validate([
             'current_quantity' => 'required|integer|min:0',
             'note' => 'nullable|string|max:255',

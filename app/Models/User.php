@@ -13,6 +13,12 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 
+/**
+ * @property int|null $role_id
+ * @property Role|null $role
+ * @property string $name
+ * @property string $email
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
@@ -24,17 +30,9 @@ class User extends Authenticatable
         'password',
         'phone',
         'address',
+        'role_id',
+        'email_verified_at',
         'stripe_customer_id',
-        'role_id',
-        'total_orders',
-        'total_spent',
-        'first_order_date',
-        'last_order_date',
-    ];
-
-    protected $guarded = [
-        'role_id',
-        'is_banned',
     ];
 
     protected $hidden = [
@@ -42,36 +40,14 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'is_banned' => 'boolean',
-            'total_spent' => 'decimal:2',
-            'first_order_date' => 'date',
-            'last_order_date' => 'date',
-        ];
-    }
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+    ];
 
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class);
-    }
-
-    public function orders(): HasMany
-    {
-        return $this->hasMany(Order::class);
-    }
-
-    public function reservations(): HasMany
-    {
-        return $this->hasMany(Reservation::class);
-    }
-
-    public function cartItems(): HasMany
-    {
-        return $this->hasMany(Cart::class);
     }
 
     public function directPermissions(): BelongsToMany
@@ -79,22 +55,10 @@ class User extends Authenticatable
         return $this->belongsToMany(Permission::class, 'user_permission');
     }
 
-    public function auditLogs(): HasMany
-    {
-        return $this->hasMany(AuditLog::class);
-    }
-
-    public function approvalRequests(): HasMany
-    {
-        return $this->hasMany(ApprovalRequest::class, 'requested_by');
-    }
-
-    public function approvalsGiven(): HasMany
-    {
-        return $this->hasMany(ApprovalRequest::class, 'approved_by');
-    }
-
-    // Role checking methods using slugs (stable, lowercase identifiers)
+    /**
+     * Check if user has admin role
+     * @return bool
+     */
     public function isAdmin(): bool
     {
         return $this->role && (in_array($this->role->slug, ['admin', 'super_admin']) || $this->role->is_super_admin);
@@ -105,6 +69,10 @@ class User extends Authenticatable
         return $this->role && ($this->role->slug === 'staff' || $this->isAdmin());
     }
 
+    /**
+     * Check if user has super admin role
+     * @return bool
+     */
     public function isSuperAdmin(): bool
     {
         return $this->role && $this->role->is_super_admin;

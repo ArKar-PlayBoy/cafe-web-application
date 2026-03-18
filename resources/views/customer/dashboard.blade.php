@@ -7,6 +7,30 @@
     <h1 class="text-3xl font-serif font-bold mb-2">Welcome back, {{ Auth::user()->name }}</h1>
     <p class="text-gray-600 dark:text-gray-400 mb-8">What would you like to do today?</p>
 
+    @if(Auth::user()->total_orders > 0)
+    <div class="bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl p-6 mb-8 text-white">
+        <h2 class="text-lg font-semibold mb-4">My Stats</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white/10 rounded-lg p-4">
+                <p class="text-sm opacity-80">Total Orders</p>
+                <p class="text-2xl font-bold">{{ Auth::user()->total_orders }}</p>
+            </div>
+            <div class="bg-white/10 rounded-lg p-4">
+                <p class="text-sm opacity-80">Total Spent</p>
+                <p class="text-2xl font-bold">${{ number_format(Auth::user()->total_spent, 2) }}</p>
+            </div>
+            <div class="bg-white/10 rounded-lg p-4">
+                <p class="text-sm opacity-80">Member Since</p>
+                <p class="text-2xl font-bold">{{ Auth::user()->first_order_date ? \Carbon\Carbon::parse(Auth::user()->first_order_date)->format('M d, Y') : 'N/A' }}</p>
+            </div>
+            <div class="bg-white/10 rounded-lg p-4">
+                <p class="text-sm opacity-80">Last Order</p>
+                <p class="text-2xl font-bold">{{ Auth::user()->last_order_date ? \Carbon\Carbon::parse(Auth::user()->last_order_date)->format('M d, Y') : 'N/A' }}</p>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <a href="{{ route('menu') }}" class="group bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 dark:border-gray-700">
             <div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">

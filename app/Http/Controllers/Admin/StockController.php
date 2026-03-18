@@ -80,7 +80,7 @@ class StockController extends Controller
 
     public function destroy(StockItem $stock)
     {
-        $this->authorize('stock.manage');
+        $this->authorize('stock.delete');
 
         $stock->delete();
 
@@ -123,11 +123,15 @@ class StockController extends Controller
 
     public function batches()
     {
+        $this->authorize('stock.view');
+
         return view('admin.stock.batches', ['batches' => StockService::getAllBatches()]);
     }
 
     public function alerts()
     {
+        $this->authorize('stock.view');
+
         $alerts = StockAlert::with('stockItem')->orderBy('created_at', 'desc')->get();
 
         return view('admin.stock.alerts', compact('alerts'));
@@ -135,6 +139,8 @@ class StockController extends Controller
 
     public function markAlertRead(StockAlert $alert)
     {
+        $this->authorize('stock.view');
+
         StockService::markAlertAsRead($alert->id);
 
         return back()->with('success', 'Alert marked as read.');
@@ -142,6 +148,8 @@ class StockController extends Controller
 
     public function expiring()
     {
+        $this->authorize('stock.view');
+
         return view('admin.stock.expiring', ['expiringItems' => StockService::checkExpiring(7)]);
     }
 

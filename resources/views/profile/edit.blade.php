@@ -56,6 +56,18 @@
                 <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors">Update Password</button>
             </form>
         </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-xl font-semibold mb-1">Payment Methods</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Manage your saved cards for faster checkout</p>
+                </div>
+                <a href="{{ route('payment-methods.index') }}" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium">
+                    Manage Cards
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 @endsection

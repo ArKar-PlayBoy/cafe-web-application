@@ -18,7 +18,10 @@ class MenuController extends Controller
         $query = MenuItem::with('category')->where('is_available', true);
 
         if ($request->has('category')) {
-            $query->where('category_id', $request->category);
+            $categoryId = (int) $request->category;
+            if ($categoryId > 0) {
+                $query->where('category_id', $categoryId);
+            }
         }
 
         $menuItems = $query->latest()->paginate(20);

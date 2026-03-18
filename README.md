@@ -1,308 +1,314 @@
-# Cafe Web Application
-
-[![Laravel](https://img.shields.io/badge/Laravel-12.x-orange.svg)](https://laravel.com)
-[![PHP](https://img.shields.io/badge/PHP-8.2+-blue.svg)](https://php.net)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/ArKar-PlayBoy/Cafe-web-application)](https://github.com/ArKar-PlayBoy/Cafe-web-application/stargazers)
-
-A comprehensive cafe management system built with Laravel 12, Tailwind CSS, and Alpine.js. Manage orders, inventory, reservations, and staff - all from a modern, intuitive interface.
-
----
-
-## Features
-
-### Customer Experience
-
-- **Digital Menu** - Browse products by categories with real-time availability status
-- **Smart Cart** - Persistent shopping cart with quantity management
-- **Table Reservations** - Interactive table booking system with date/time selection
-- **Multi-Channel Payments** - Support for COD, MPU, Visa, KBZ Pay, and Stripe
-- **Order Tracking** - Track order status in real-time (Pending → Preparing → Ready → Completed)
-- **Order History** - View past transactions and reorder easily
-
-### Staff & Admin Power
-
-- **Live Dashboard** - Real-time statistics on orders, revenue, and reservations
-- **Order Management** - Complete workflow: Pending → Preparing → Ready → Completed
-- **Reservation Management** - View, confirm, or cancel table bookings
-- **Inventory Control** - Track stock levels, log waste, adjust quantities
-- **Stock Alerts** - Automatic notifications for low stock and expiring items
-- **Recipe Management** - Define ingredient requirements for each menu item
-- **Batch Tracking** - FIFO inventory tracking with expiration dates
-
-### Admin Exclusive
-
-- **Full CRUD Operations** - Manage products, categories, tables, and users
-- **Role-Based Access** - Separate dashboards for Admin, Staff, and Customers
-- **User Management** - Create, ban/unban users, view activity
-- **Order Export** - Download order data as CSV for reporting
-- **Payment Verification** - Review and verify manual payment submissions
-- **Dark Mode** - Built-in theme toggling for different environments
-
----
-
-## Tech Stack
-
-| Component | Technology |
-|-----------|------------|
-| Framework | Laravel 12.x |
-| Frontend | Tailwind CSS 4.x, Alpine.js 3.x |
-| Authentication | Laravel Breeze (Multi-Guard) |
-| Database | MySQL 8.0+ |
-| Build Tool | Vite 7.x |
-| Payment Gateway | Stripe, MPU, KBZ Pay |
-| PHP Version | 8.2+ |
-
----
-
-## Screenshots
-
-> Add your screenshots here
-
-```
-📸 Customer Menu
-📸 Shopping Cart
-📸 Order Tracking
-📸 Admin Dashboard
-📸 Staff Dashboard
-📸 Inventory Management
-```
-
----
-
-## Project Structure
-
-```
-cafe-app/
-├── app/
-│   ├── Http/
-│   │   ├── Controllers/
-│   │   │   ├── Admin/          # Admin panel controllers
-│   │   │   ├── Staff/         # Staff panel controllers
-│   │   │   ├── CartController.php
-│   │   │   ├── MenuController.php
-│   │   │   └── ...
-│   │   └── Middleware/        # RBAC middleware
-│   ├── Models/                # Eloquent models
-│   └── View/Components/       # Blade components
-├── database/
-│   ├── migrations/            # Database migrations
-│   └── seeders/              # Database seeders
-├── resources/
-│   └── views/                # Blade templates
-│       ├── customer/          # Customer views
-│       ├── admin/            # Admin panel views
-│       ├── staff/            # Staff panel views
-│       └── components/       # Reusable components
-├── routes/
-│   ├── web.php               # Main routes
-│   └── api.php               # API routes
-└── config/                   # Configuration files
-```
+☕ AI Barista – Cafe Management System
 
----
+AI Barista is a modern full-stack cafe management platform built with Laravel 12, designed to streamline cafe operations while providing customers with an intelligent drink recommendation experience.
 
-## Installation
+The system combines order management, reservations, inventory tracking, payment processing, and AI-powered drink recommendations into one integrated platform.
 
-### Prerequisites
+🚀 Features
+👤 Customer Features
 
-- PHP >= 8.2
-- Composer
-- Node.js & NPM
-- MySQL 8.0+
+User registration, login, logout
 
-### Steps
+Browse menu by category
 
-1. **Clone the repository**
+Search drinks and food items
 
-   ```bash
-   git clone https://github.com/ArKar-PlayBoy/Cafe-web-application.git
-   cd cafe-app
-   ```
+Add items to cart with notes
 
-2. **Install PHP dependencies**
+Checkout with multiple payment methods
 
-   ```bash
-   composer install
-   ```
+View order history
 
-3. **Install Node.js dependencies**
+Upload payment screenshot (KBZ Pay)
 
-   ```bash
-   npm install
-   ```
+Make table reservations
 
-4. **Environment Setup**
+Profile management
 
-   ```bash
-   cp .env.example .env
-   php artisan key:generate
-   ```
+Save payment methods (Stripe)
 
-5. **Configure Database**
+👨‍💼 Admin Features
 
-   Open `.env` and update your MySQL credentials:
+Admin dashboard with analytics
 
-   ```env
-   DB_CONNECTION=mysql
-   DB_HOST=127.0.0.1
-   DB_PORT=3306
-   DB_DATABASE=cafe_db
-   DB_USERNAME=root
-   DB_PASSWORD=your_password
-   ```
+Category management (CRUD)
 
-6. **Run Migrations & Seeders**
+Menu item management with images
 
-   ```bash
-   php artisan migrate --seed
-   ```
+Cafe table management
 
-7. **Compile Assets**
-
-   ```bash
-   npm run build
-   ```
-
-8. **Start the Server**
-
-   ```bash
-   # Terminal 1: Start Laravel server
-   php artisan serve
+User management (create/edit/ban)
 
-   # Terminal 2: Start Vite dev server (optional, for hot reload)
-   npm run dev
-   ```
-
-9. **Access the Application**
-
-   - Customer Portal: http://localhost:8000
-   - Admin Panel: http://localhost:8000/admin/login
-   - Staff Panel: http://localhost:8000/staff/login
+Order management
 
-### Default Credentials
+Payment verification
 
-After seeding, you can login with:
-
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@cafe.com | password |
-| Staff | staff@cafe.com | password |
-| Customer | user@cafe.com | password |
+Delivery status tracking
 
----
+Inventory and stock management
 
-## API Routes Overview
+Stock alerts (low stock / expiring)
 
-### Customer Routes (Authenticated)
+Sales reports and analytics
 
-| Method | Route | Description |
-|--------|-------|-------------|
-| GET | /menu | Browse menu items |
-| GET | /cart | View shopping cart |
-| POST | /cart/add/{menuItem} | Add item to cart |
-| PUT | /cart/update/{cartItem} | Update cart item |
-| DELETE | /cart/remove/{cartItem} | Remove cart item |
-| GET | /checkout | Checkout page |
-| POST | /checkout | Place order |
-| GET | /orders | Order history |
-| GET | /orders/{order} | Order details |
-| POST | /orders/{order}/upload-payment | Upload payment proof |
-| POST | /orders/{order}/cancel | Cancel order |
-| GET | /reservations | View reservations |
-| POST | /reservations | Make reservation |
+Permission management
 
-### Admin Routes
+Audit logs
 
-| Method | Route | Description |
-|--------|-------|-------------|
-| GET | /admin/dashboard | Admin dashboard |
-| GET | /admin/menu | Manage menu items |
-| POST | /admin/menu | Create menu item |
-| GET | /admin/tables | Manage tables |
-| GET | /admin/users | Manage users |
-| POST | /admin/users/{user}/ban | Ban user |
-| GET | /admin/orders | View all orders |
-| GET | /admin/orders/export/all | Export orders CSV |
-| GET | /admin/stock | Inventory management |
-| GET | /admin/stock/alerts | Stock alerts |
-| GET | /admin/stock/batches | Batch tracking |
+👨‍🍳 Staff Features
 
-### Staff Routes
+View today's orders
 
-| Method | Route | Description |
-|--------|-------|-------------|
-| GET | /staff/dashboard | Staff dashboard |
-| GET | /staff/orders | Manage orders |
-| PUT | /staff/orders/{order}/status | Update order status |
-| POST | /staff/orders/{order}/reject | Reject order |
-| GET | /staff/reservations | Manage reservations |
-| PUT | /staff/reservations/{reservation}/status | Update reservation |
-| GET | /staff/stock | View stock |
-| POST | /staff/stock/{stock}/in | Add stock |
-| POST | /staff/stock/{stock}/waste | Log waste |
-| POST | /staff/stock/{stock}/adjust | Adjust quantity |
+Update order status
 
----
+Verify payments
 
-## Database Schema
+Kitchen display system
 
-The system uses a relational MySQL schema:
+Reservation management
 
-```
-Users (id, name, email, role_id, ...)
-  ↓
-Roles (id, name) → admin, staff, customer
-  ↓
-Categories (id, name, ...) → MenuItems (id, category_id, ...)
-  ↓
-Orders (id, user_id, status, total, ...)
-  ↓
-OrderItems (id, order_id, menu_item_id, quantity, ...)
-  ↓
-StockItems (id, name, current_quantity, min_quantity, ...)
-  ↓
-StockBatches (id, stock_item_id, quantity, expiry_date, ...)
-```
+Add stock
 
----
+Log waste
 
-## Security
+Adjust inventory
 
-- **Role-Based Access Control (RBAC)** - Strict middleware for Admin/Staff routes
-- **CSRF Protection** - All forms protected with Laravel tokens
-- **Password Hashing** - Bcrypt hashing via Laravel
-- **Input Validation** - Form request validation on all inputs
+🧠 AI Barista Recommendation System
 
----
+The system suggests drinks based on:
 
-## Contributing
+🌤 Weather Conditions
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Weather data is fetched from Open-Meteo API (Yangon).
 
----
+Weather	Recommendation
+Rainy	Hot drinks
+Hot (>25°C)	Cold drinks
+Cold (<15°C)	Hot drinks
+Mild	Specialty drinks
+😊 Mood Detection
+Mood	Drinks
+Tired	Espresso, Americano
+Relaxed	Chai Latte, Matcha
+Sweet	Mocha, Caramel Macchiato
+Energetic	Espresso, Matcha
+Sad	Hot Chocolate
+Happy	Frappuccino
+⏰ Time-Based Suggestions
+Time	Drinks
+Morning	Latte, Cappuccino
+Afternoon	Iced Latte, Cold Brew
+Evening	Decaf, Herbal Tea
+🏗 Tech Stack
+Layer	Technology
+Backend	Laravel 12.x
+Language	PHP 8.2+
+Frontend	Tailwind CSS 4 + Alpine.js
+Database	MySQL
+Build Tool	Vite
+Payments	Stripe SDK
+API	Open-Meteo
+🏛 System Architecture
+app/
+ ├── Http/Controllers
+ │   ├── Admin
+ │   ├── Staff
+ │   ├── Customer
+ │   └── Auth
+ │
+ ├── Models
+ ├── Services
+ ├── Middleware
+ ├── Events
+ ├── Listeners
+ ├── Mail
+ ├── Policies
+ └── Traits
+🔐 Authentication
 
-## License
+The application uses Multi-Guard Authentication.
 
-This project is open-sourced software licensed under the [MIT license](LICENSE).
+Guard	Purpose	Route
+web	Customers	/login
+admin	Admin users	/admin/login
+staff	Staff users	/staff/login
+🛡 Authorization (RBAC)
 
----
+Role-based access control is implemented with 32 permissions.
 
-## Author
+Roles
 
-**Ar Kar**
-- GitHub: [@ArKar-PlayBoy](https://github.com/ArKar-PlayBoy)
-- Project: [Cafe Web Application](https://github.com/ArKar-PlayBoy/Cafe-web-application)
+Super Admin
 
----
+Admin
 
-## Acknowledgments
+Staff
 
-- [Laravel](https://laravel.com) - The PHP framework
-- [Tailwind CSS](https://tailwindcss.com) - CSS framework
-- [Alpine.js](https://alpinejs.dev) - JavaScript framework
-- [Laravel Breeze](https://laravel.com/docs/starter-kits#breeze) - Authentication starter kit
+Customer
+
+Critical Actions (Require Approval)
+
+Deleting categories
+
+Deleting admins
+
+Permission changes
+
+🗄 Database Overview
+
+Main tables:
+
+users
+roles
+permissions
+orders
+order_items
+menu_items
+categories
+carts
+reservations
+cafe_tables
+stock_items
+stock_batches
+stock_movements
+stock_alerts
+waste_logs
+kitchen_tickets
+audit_logs
+approval_requests
+💳 Payment System
+
+Supported payment methods:
+
+Method	Verification
+Stripe	Automatic via webhook
+Saved Card	Automatic
+KBZ Pay	Manual screenshot verification
+COD	On delivery
+Stripe Webhook Events
+
+checkout.session.completed
+
+payment_intent.succeeded
+
+payment_intent.payment_failed
+
+📦 Inventory System
+
+The system implements FIFO inventory tracking.
+
+Features:
+
+Stock batch tracking
+
+Expiry monitoring
+
+Waste logging
+
+Low stock alerts
+
+Expiring stock alerts
+
+🍳 Kitchen Display System
+
+Order lifecycle:
+
+pending → preparing → ready → completed
+
+Kitchen tickets track food preparation progress.
+
+📅 Reservation System
+
+Flow:
+
+Customer selects date, time, party size
+
+System checks available tables
+
+Staff confirms or rejects reservation
+
+Confirmation email sent
+
+🔒 Security Features
+
+Implemented security protections:
+
+Multi-guard authentication
+
+Role-based access control
+
+CSRF protection
+
+Rate limiting
+
+IDOR protection
+
+Security headers
+
+Password hashing (bcrypt)
+
+Audit logging
+
+Ban system
+
+Approval workflow
+
+Security headers:
+
+X-Frame-Options: SAMEORIGIN
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Referrer-Policy: strict-origin-when-cross-origin
+Content-Security-Policy
+Strict-Transport-Security
+🔌 API Endpoints
+Public API
+GET /api/weather
+GET /api/recommend
+GET /api/drinks
+Authenticated API
+GET /api/orders
+GET /api/orders/{id}
+GET /api/menu
+GET /api/menu/{id}
+⚙️ Installation
+1️⃣ Clone Repository
+git clone https://github.com/ArKar-PlayBoy/Cafe-web-application
+cd Cafe-web-application
+2️⃣ Install Dependencies
+composer install
+npm install
+3️⃣ Environment Setup
+cp .env.example .env
+php artisan key:generate
+4️⃣ Configure Database
+
+Update .env:
+
+DB_DATABASE=cafe_db
+DB_USERNAME=root
+DB_PASSWORD=
+5️⃣ Run Migrations
+php artisan migrate --seed
+6️⃣ Start Development Server
+composer run dev
+🧪 Running Tests
+composer run test
+📊 Key Services
+Service	Purpose
+PaymentService	Stripe payments
+PermissionService	RBAC
+StockService	FIFO inventory
+ReportService	Sales analytics
+WeatherService	Weather API
+RecommendationService	AI drink suggestions
+
+📜 License
+
+This project is licensed under the MIT License.
+
+👨‍💻 Author
+
+AI Barista Project
+
+Built with ❤️ using Laravel + Tailwind + Alpine.js

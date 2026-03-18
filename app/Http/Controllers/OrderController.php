@@ -34,8 +34,12 @@ class OrderController extends Controller
             abort(403);
         }
 
-        if ($order->payment_status === 'verified') {
+        if (in_array($order->payment_status, ['verified', 'paid'])) {
             return back()->with('error', 'Payment already verified.');
+        }
+
+        if ($order->payment_status === 'awaiting_verification' && $order->payment_screenshot) {
+            return back()->with('error', 'Payment screenshot already uploaded. Please wait for verification.');
         }
 
         if ($order->payment_method === 'cod') {
@@ -43,7 +47,7 @@ class OrderController extends Controller
         }
 
         $request->validate([
-            'screenshot' => 'required|file|mimes:jpg,jpeg,png|max:2048',
+            'screenshot' => 'required|file|mimes:jpg|max:2048',
             'reference' => 'nullable|string|max:255',
         ]);
 
@@ -60,6 +64,12 @@ class OrderController extends Controller
         $order->update([
             'payment_screenshot' => $screenshotPath,
             'payment_reference' => $request->reference,
+            'payment_status' => 'awaiting_verification',
+        ]);
+
+        \Illuminate\Support\Facades\Log::info('Payment screenshot uploaded', [
+            'order_id' => $order->id,
+            'user_id' => auth()->id(),
             'payment_status' => 'awaiting_verification',
         ]);
 

@@ -3,282 +3,176 @@
 @section('title', 'Menu')
 
 @section('content')
-<div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6">
-    <!-- Header with Title and Sort -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <div>
-            <h1 class="text-2xl sm:text-3xl font-serif font-bold text-gray-800 dark:text-white">Our Menu</h1>
-            <p class="text-sm sm:text-base text-gray-500 dark:text-gray-400 hidden sm:block">Discover our selection of coffee, tea, and delicious treats</p>
-        </div>
-        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-            <!-- Search Input -->
-            <div class="relative w-full sm:w-auto">
-                <input type="text" id="menu-search" placeholder="Search..." 
-                    class="w-full sm:w-48 md:w-64 px-3 py-2 pl-9 sm:pl-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm">
-                <svg class="w-4 h-4 sm:w-5 sm:h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                </svg>
+@php
+    $initialCartCount = auth()->check() ? \App\Models\Cart::where('user_id', auth()->id())->sum('quantity') : 0;
+@endphp
+
+<!-- Hero / Header Section -->
+<div class="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 sticky top-[64px] z-40 pt-4 sm:pt-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+            <div>
+                <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white">Menu</h1>
+                <p class="mt-2 text-sm sm:text-base text-gray-500 dark:text-gray-400 font-medium">Handcrafted beverages and delicious treats.</p>
             </div>
-            <!-- Sort Dropdown -->
-            <select id="sort-select" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm">
-                <option value="default">Sort by</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
-                <option value="name-asc">Name: A to Z</option>
-                <option value="name-desc">Name: Z to A</option>
+            
+            <div class="flex items-center gap-3">
+                <!-- Sleek Search -->
+                <div class="relative w-full md:w-72">
+                    <input type="text" id="menu-search" placeholder="Search our menu..." 
+                        class="w-full bg-gray-100 dark:bg-gray-800 border-transparent focus:bg-white focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 rounded-full py-2.5 pl-11 pr-4 text-sm font-medium text-gray-900 dark:text-gray-100 transition-all duration-300 placeholder-gray-400">
+                    <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sleek Category Tabs -->
+        <div class="flex overflow-x-auto hide-scrollbar gap-6 sm:gap-8 pb-px">
+            <a href="{{ route('menu') }}" class="whitespace-nowrap pb-4 text-sm font-bold border-b-2 transition-colors duration-200 {{ !request('category') ? 'border-emerald-600 text-emerald-700 dark:border-emerald-500 dark:text-emerald-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300' }}">
+                All Offerings
+            </a>
+            @foreach($categories as $category)
+            <a href="{{ route('menu', ['category' => $category->id]) }}" class="whitespace-nowrap pb-4 text-sm font-bold border-b-2 transition-colors duration-200 {{ request('category') == $category->id ? 'border-emerald-600 text-emerald-700 dark:border-emerald-500 dark:text-emerald-400' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300' }}">
+                {{ $category->name }}
+            </a>
+            @endforeach
+        </div>
+    </div>
+</div>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+    
+    <!-- AI Barista Banner -->
+    <div class="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="inline-flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 px-5 py-2.5 rounded-full border border-emerald-100 dark:border-emerald-800/30 w-fit">
+            <span class="relative flex h-2.5 w-2.5">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <span class="text-xs font-bold tracking-wide text-emerald-800 dark:text-emerald-300 uppercase">AI Barista Ready</span>
+        </div>
+        
+        <div class="flex items-center gap-3 self-end sm:self-auto">
+            <span class="text-sm font-bold text-gray-500 dark:text-gray-400"><span id="item-count">{{ $menuItems->count() }}</span> Items</span>
+            <!-- Minimalist Sort -->
+            <select id="sort-select" class="text-sm font-bold bg-transparent border-none text-gray-700 dark:text-gray-300 focus:ring-0 cursor-pointer p-0 pr-6">
+                <option class="bg-white dark:bg-gray-800" value="default">Featured</option>
+                <option class="bg-white dark:bg-gray-800" value="price-low">Price: Low to High</option>
+                <option class="bg-white dark:bg-gray-800" value="price-high">Price: High to Low</option>
+                <option class="bg-white dark:bg-gray-800" value="name-asc">A-Z</option>
+                <option class="bg-white dark:bg-gray-800" value="name-desc">Z-A</option>
             </select>
         </div>
     </div>
 
-    <!-- Mobile Filter Toggle -->
-    <div class="lg:hidden mb-4">
-        <button onclick="document.getElementById('mobile-filters').classList.toggle('hidden')" class="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-            <span class="font-medium text-gray-700 dark:text-gray-300">Filters</span>
-            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
-        </button>
-    </div>
-
-    <div class="flex flex-col lg:flex-row gap-4 sm:gap-6">
-        <!-- Sidebar Categories (Desktop) / Mobile Filters -->
-        <aside class="lg:w-64 shrink-0">
-            <!-- Mobile Filters Panel -->
-            <div id="mobile-filters" class="lg:hidden hidden bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl border border-white/20 dark:border-gray-700/50 rounded-3xl p-4 sm:p-6 mb-4">
-                <h3 class="font-heading font-bold text-gray-800 dark:text-white mb-4 text-lg">Categories</h3>
-                <ul class="space-y-2">
-                    <li>
-                        <a href="{{ route('menu') }}" class="flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 {{ !request('category') ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-md shadow-teal-500/20 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 hover:shadow-sm' }}">
-                            <span>All Items</span>
-                            <span class="text-xs py-1 px-2 rounded-full {{ !request('category') ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400' }}">{{ $menuItems->count() }}</span>
-                        </a>
-                    </li>
-                    @foreach($categories as $category)
-                    <li>
-                        <a href="{{ route('menu', ['category' => $category->id]) }}" class="flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 {{ request('category') == $category->id ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-md shadow-teal-500/20 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 hover:shadow-sm' }}">
-                            <span>{{ $category->name }}</span>
-                            <span class="text-xs py-1 px-2 rounded-full {{ request('category') == $category->id ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400' }}">{{ $category->menuItems->count() }}</span>
-                        </a>
-                    </li>
-                    @endforeach
-                </ul>
-
-                <!-- Price Filter -->
-                <h3 class="font-heading font-bold text-gray-800 dark:text-white mt-6 sm:mt-8 mb-4 text-lg">Price Range</h3>
-                <div class="space-y-3">
-                    <label class="flex items-center gap-3 text-gray-600 dark:text-gray-300 cursor-pointer group">
-                        <div class="relative flex items-center justify-center">
-                            <input type="checkbox" class="price-filter peer sr-only" value="0-4">
-                            <div class="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded flex items-center justify-center peer-checked:bg-teal-500 peer-checked:border-teal-500 transition-colors">
-                                <svg class="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                            </div>
-                        </div>
-                        <span class="text-sm font-medium group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">Under $4</span>
-                    </label>
-                    <label class="flex items-center gap-3 text-gray-600 dark:text-gray-300 cursor-pointer group">
-                        <div class="relative flex items-center justify-center">
-                            <input type="checkbox" class="price-filter peer sr-only" value="4-6">
-                            <div class="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded flex items-center justify-center peer-checked:bg-teal-500 peer-checked:border-teal-500 transition-colors">
-                                <svg class="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                            </div>
-                        </div>
-                        <span class="text-sm font-medium group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">$4 - $6</span>
-                    </label>
-                    <label class="flex items-center gap-3 text-gray-600 dark:text-gray-300 cursor-pointer group">
-                        <div class="relative flex items-center justify-center">
-                            <input type="checkbox" class="price-filter peer sr-only" value="6-10">
-                            <div class="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded flex items-center justify-center peer-checked:bg-teal-500 peer-checked:border-teal-500 transition-colors">
-                                <svg class="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                            </div>
-                        </div>
-                        <span class="text-sm font-medium group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">$6 - $10</span>
-                    </label>
+    <!-- Product Grid -->
+    <div id="menu-grid" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-10 sm:gap-x-6 sm:gap-y-12">
+        @forelse($menuItems as $item)
+        <div class="menu-item group flex flex-col" 
+             data-name="{{ strtolower($item->name) }}" 
+             data-price="{{ $item->price }}"
+             data-category="{{ $item->category->slug }}">
+             
+            <!-- Image Hero -->
+            <div class="relative w-full aspect-square bg-gray-50 dark:bg-gray-800 sm:rounded-[2rem] rounded-3xl overflow-hidden mb-4 shadow-sm border border-gray-100 dark:border-gray-800">
+                <img src="{{ $item->featured_image }}" alt="{{ $item->name }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out">
+                
+                @if(!$item->is_available)
+                <div class="absolute inset-0 bg-white/40 dark:bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                    <span class="bg-gray-900 text-white px-4 py-1.5 rounded-full text-xs font-bold tracking-widest uppercase">Sold Out</span>
                 </div>
-            </div>
-
-            <!-- Desktop Sidebar -->
-            <div class="hidden lg:block bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl border border-white/20 dark:border-gray-700/50 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] p-6 sticky top-24">
-                <h3 class="font-heading font-bold text-gray-800 dark:text-white mb-4 text-lg">Categories</h3>
-                <ul class="space-y-2">
-                    <li>
-                        <a href="{{ route('menu') }}" class="flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 {{ !request('category') ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-md shadow-teal-500/20 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 hover:shadow-sm' }}">
-                            <span>All Items</span>
-                            <span class="text-xs py-1 px-2 rounded-full {{ !request('category') ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400' }}">{{ $menuItems->count() }}</span>
-                        </a>
-                    </li>
-                    @foreach($categories as $category)
-                    <li>
-                        <a href="{{ route('menu', ['category' => $category->id]) }}" class="flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 {{ request('category') == $category->id ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-md shadow-teal-500/20 font-medium' : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 hover:shadow-sm' }}">
-                            <span>{{ $category->name }}</span>
-                            <span class="text-xs py-1 px-2 rounded-full {{ request('category') == $category->id ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400' }}">{{ $category->menuItems->count() }}</span>
-                        </a>
-                    </li>
-                    @endforeach
-                </ul>
-
-                <!-- Price Filter -->
-                <h3 class="font-heading font-bold text-gray-800 dark:text-white mt-8 mb-4 text-lg">Price Range</h3>
-                <div class="space-y-3">
-                    <label class="flex items-center gap-3 text-gray-600 dark:text-gray-300 cursor-pointer group">
-                        <div class="relative flex items-center justify-center">
-                            <input type="checkbox" class="price-filter peer sr-only" value="0-4">
-                            <div class="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded flex items-center justify-center peer-checked:bg-teal-500 peer-checked:border-teal-500 transition-colors">
-                                <svg class="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                            </div>
-                        </div>
-                        <span class="text-sm font-medium group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">Under $4</span>
-                    </label>
-                    <label class="flex items-center gap-3 text-gray-600 dark:text-gray-300 cursor-pointer group">
-                        <div class="relative flex items-center justify-center">
-                            <input type="checkbox" class="price-filter peer sr-only" value="4-6">
-                            <div class="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded flex items-center justify-center peer-checked:bg-teal-500 peer-checked:border-teal-500 transition-colors">
-                                <svg class="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                            </div>
-                        </div>
-                        <span class="text-sm font-medium group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">$4 - $6</span>
-                    </label>
-                    <label class="flex items-center gap-3 text-gray-600 dark:text-gray-300 cursor-pointer group">
-                        <div class="relative flex items-center justify-center">
-                            <input type="checkbox" class="price-filter peer sr-only" value="6-10">
-                            <div class="w-5 h-5 border-2 border-gray-300 dark:border-gray-600 rounded flex items-center justify-center peer-checked:bg-teal-500 peer-checked:border-teal-500 transition-colors">
-                                <svg class="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                            </div>
-                        </div>
-                        <span class="text-sm font-medium group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">$6 - $10</span>
-                    </label>
-                </div>
-            </div>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="flex-1">
-            <!-- Category Pills (Mobile) -->
-            <div class="flex gap-2 mb-4 overflow-x-auto pb-2 lg:hidden sticky top-[64px] z-30 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md pt-4 -mx-3 px-3 sm:-mx-4 sm:px-4">
-                <a href="{{ route('menu') }}" class="px-4 py-2 rounded-full whitespace-nowrap {{ !request('category') ? 'bg-teal-600 text-white' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700' }}">
-                    All
-                </a>
-                @foreach($categories as $category)
-                <a href="{{ route('menu', ['category' => $category->id]) }}" class="px-4 py-2 rounded-full whitespace-nowrap {{ request('category') == $category->id ? 'bg-teal-600 text-white' : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700' }}">
-                    {{ $category->name }}
-                </a>
-                @endforeach
-            </div>
-
-            <!-- AI Barista Banner -->
-            <div class="mb-4 flex items-center justify-between">
-                <div class="hidden md:flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 bg-gradient-to-r from-purple-50 to-teal-50 dark:from-purple-900/20 dark:to-teal-900/20 px-4 py-2 rounded-full">
-                    <span class="relative flex h-2 w-2">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
-                    </span>
-                    <span>AI Barista Available!</span>
-                </div>
-                <p class="text-sm text-gray-500 dark:text-gray-400"><span id="item-count">{{ $menuItems->count() }}</span> items</p>
-            </div>
-
-            <!-- Product Grid -->
-            <div id="menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4">
-                @forelse($menuItems as $item)
-                <div class="menu-item bg-white/60 dark:bg-gray-800/60 backdrop-blur-lg border border-white/20 dark:border-gray-700/50 rounded-3xl shadow-sm hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.3)] overflow-hidden transition-all duration-500 group relative hover:-translate-y-2" 
-                     data-name="{{ strtolower($item->name) }}" 
-                     data-price="{{ $item->price }}"
-                     data-category="{{ $item->category->slug }}">
-                    <div class="relative h-48 overflow-hidden rounded-t-3xl mask mask-squircle m-2">
-                        <img src="{{ $item->featured_image }}" alt="{{ $item->name }}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                        
-                        <!-- Floating Price Tag -->
-                        <div class="absolute top-3 right-3 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-lg border border-white/20 z-10">
-                            <span class="text-sm font-bold text-gray-900 dark:text-white">${{ number_format($item->price, 2) }}</span>
-                        </div>
-
-                        @if(!$item->is_available)
-                        <div class="absolute top-3 left-3 bg-red-500/90 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-medium shadow-lg">Sold Out</div>
-                        @endif
-                    </div>
-                    <div class="p-5 pt-4">
-                        <div class="mb-2">
-                            <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 uppercase tracking-wider">{{ $item->category->name }}</span>
-                        </div>
-                        <h3 class="font-heading font-bold text-xl text-gray-800 dark:text-white mb-2">{{ $item->name }}</h3>
-                        
-                        <!-- Rating Stars -->
-                        <div class="flex items-center gap-1 mb-3">
-                            @for($i = 1; $i <= 5; $i++)
-                            <svg class="w-4 h-4 {{ $i <= 4 ? 'text-amber-400' : 'text-gray-300 dark:text-gray-600' }}" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                @endif
+                
+                <!-- Quick Add Hover Overlay (Desktop) -->
+                @if($item->is_available)
+                <div class="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 sm:opacity-0 sm:translate-y-2 sm:group-hover:opacity-100 sm:group-hover:translate-y-0 transition-all duration-300 ease-out drop-shadow-xl z-20">
+                    <button type="button" onclick="document.getElementById('notes-{{ $item->id }}').classList.toggle('hidden')" class="w-10 h-10 sm:w-12 sm:h-12 bg-gray-600 hover:bg-gray-700 text-white rounded-full flex items-center justify-center transform active:scale-95 transition-all outline-none focus:ring-4 focus:ring-gray-600/30 mb-2" aria-label="Add notes">
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                    </button>
+                    <form action="{{ route('cart.add', $item->id) }}" method="POST" class="quick-add-form">
+                        @csrf
+                        <input type="hidden" name="quantity" value="1">
+                        <textarea name="notes" id="notes-{{ $item->id }}" class="hidden w-full text-xs sm:text-sm mb-2 px-2 py-1 rounded border dark:bg-gray-700 dark:border-gray-600 dark:text-white" rows="2" placeholder="Notes (e.g., less ice)"></textarea>
+                        <button type="submit" class="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full flex items-center justify-center transform active:scale-95 transition-all outline-none focus:ring-4 focus:ring-emerald-600/30" aria-label="Add to cart">
+                            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
                             </svg>
-                            @endfor
-                            <span class="text-xs text-gray-400 ml-1">({{ rand(50, 200) }})</span>
-                        </div>
-                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2 leading-relaxed">{{ $item->description }}</p>
-                        
-                        @if($item->is_available)
-                        <!-- Add to Cart (Revealed on hover on desktop, always visible on mobile) -->
-                        <div class="mt-auto transition-all duration-300 transform sm:translate-y-2 sm:opacity-0 group-hover:translate-y-0 group-hover:opacity-100">
-                            <form action="{{ route('cart.add', $item->id) }}" method="POST" class="flex gap-2 items-center quick-add-form relative z-20">
-                                @csrf
-                                <div class="relative flex border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800">
-                                    <button type="button" class="px-3 py-2 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" onclick="this.nextElementSibling.stepDown()">-</button>
-                                    <input type="number" name="quantity" value="1" min="1" max="99" class="w-12 text-center bg-transparent border-none focus:ring-0 text-sm font-medium p-0">
-                                    <button type="button" class="px-3 py-2 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" onclick="this.previousElementSibling.stepUp()">+</button>
-                                </div>
-                                <button type="submit" class="flex-1 bg-gray-900 hover:bg-teal-600 dark:bg-white dark:text-gray-900 text-white dark:hover:bg-teal-500 dark:hover:text-white py-2.5 px-4 rounded-xl text-sm font-medium shadow-md transition-all duration-300 flex justify-center items-center gap-2">
-                                    <span>Add</span>
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                                </button>
-                            </form>
-                        </div>
-                        @else
-                        <div class="mt-auto">
-                            <button disabled class="w-full bg-gray-100 dark:bg-gray-700 text-gray-400 py-2.5 rounded-xl text-sm font-medium cursor-not-allowed">
-                                Out of Stock
-                            </button>
-                        </div>
-                        @endif
-                    </div>
+                        </button>
+                    </form>
                 </div>
-                @empty
-                <div class="col-span-full text-center py-12">
-                    <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                    </svg>
-                    <p class="text-gray-500 dark:text-gray-400 text-lg">No items found</p>
-                    <a href="{{ route('menu') }}" class="text-teal-600 hover:underline mt-2 inline-block">Clear filters</a>
-                </div>
-                @endforelse
+                @endif
             </div>
-        </main>
+
+            <!-- Details -->
+            <div class="px-1 text-left flex-1 flex flex-col">
+                <div class="flex items-center justify-between mb-1 gap-2">
+                    <span class="text-[10px] sm:text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">{{ $item->category->name }}</span>
+                </div>
+                <h3 class="text-sm sm:text-lg font-bold text-gray-900 dark:text-white leading-snug mb-1 truncate">{{ $item->name }}</h3>
+                <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed mb-3 flex-1">{{ $item->description }}</p>
+                <div class="mt-auto pt-1 font-bold text-gray-900 dark:text-white text-sm sm:text-base">${{ number_format($item->price, 2) }}</div>
+            </div>
+            
+        </div>
+        @empty
+        <div class="col-span-full py-20 text-center">
+            <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-50 dark:bg-gray-800 mb-6">
+                <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">No items found</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-6">We couldn't find any items matching your search criteria.</p>
+            <a href="{{ route('menu') }}" class="inline-flex items-center justify-center px-6 py-2.5 border border-transparent text-sm font-bold rounded-full text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
+                Clear Filters
+            </a>
+        </div>
+        @endforelse
     </div>
 </div>
 
-<!-- Floating Cart Summary -->
-<div id="floating-cart" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 py-4 rounded-full shadow-2xl z-50 transition-all duration-300 transform translate-y-full opacity-0 flex items-center gap-4 border border-white/10 dark:border-slate-900/10">
-    <div class="flex items-center gap-2">
-        <div class="relative">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-            <span id="floating-cart-count" class="absolute -top-2 -right-2 bg-teal-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">0</span>
+<!-- Premium Floating Cart Pill -->
+<div id="floating-cart" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 transform {{ $initialCartCount > 0 ? '' : 'translate-y-full opacity-0' }}">
+    <a href="{{ route('cart') }}" class="flex items-center gap-3 sm:gap-4 bg-gray-900/95 dark:bg-white/95 backdrop-blur-md text-white dark:text-gray-900 px-5 sm:px-6 py-3 sm:py-3.5 rounded-full shadow-2xl border border-gray-800 dark:border-gray-200 hover:scale-105 active:scale-95 transition-all">
+        <div class="relative flex items-center justify-center">
+            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+            <span id="floating-cart-count" class="absolute -top-2 -right-2 sm:-right-3 bg-emerald-500 text-white text-[10px] sm:text-xs font-extrabold px-1.5 py-0.5 rounded-full min-w-[18px] sm:min-w-[20px] text-center shadow-sm">{{ $initialCartCount > 9 ? '9+' : $initialCartCount }}</span>
         </div>
-        <span class="font-medium hidden sm:inline">Items in cart</span>
-    </div>
-    <div class="w-px h-6 bg-white/20 dark:bg-slate-900/20"></div>
-    <a href="{{ route('cart') }}" class="font-bold hover:text-teal-400 dark:hover:text-teal-600 transition-colors flex items-center gap-1">
-        View Cart
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+        <span class="font-bold text-sm sm:text-base tracking-wide whitespace-nowrap">View Order</span>
     </a>
 </div>
+
+<style>
+/* Hide scrollbar for category tabs */
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('menu-search');
     const sortSelect = document.getElementById('sort-select');
     const menuItems = document.querySelectorAll('.menu-item');
-    const priceFilters = document.querySelectorAll('.price-filter');
     const itemCountEl = document.getElementById('item-count');
+    const menuGrid = document.getElementById('menu-grid');
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
     function filterItems() {
+        if (!searchInput) return;
+        
         const searchTerm = searchInput.value.toLowerCase();
-        const selectedPrices = Array.from(priceFilters).filter(cb => cb.checked).map(cb => cb.value);
-        const sortValue = sortSelect.value;
+        const sortValue = sortSelect ? sortSelect.value : 'default';
 
         let filteredItems = Array.from(menuItems);
 
@@ -290,44 +184,39 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Filter by price
-        if (selectedPrices.length > 0) {
-            filteredItems = filteredItems.filter(item => {
-                const price = parseFloat(item.dataset.price);
-                return selectedPrices.some(range => {
-                    const [min, max] = range.split('-').map(Number);
-                    return price >= min && price < max;
-                });
+        // Sort
+        if (sortValue !== 'default') {
+            filteredItems.sort((a, b) => {
+                const priceA = parseFloat(a.dataset.price);
+                const priceB = parseFloat(b.dataset.price);
+                const nameA = a.dataset.name;
+                const nameB = b.dataset.name;
+
+                switch(sortValue) {
+                    case 'price-low': return priceA - priceB;
+                    case 'price-high': return priceB - priceA;
+                    case 'name-asc': return nameA.localeCompare(nameB);
+                    case 'name-desc': return nameB.localeCompare(nameA);
+                    default: return 0;
+                }
             });
         }
 
-        // Sort
-        filteredItems.sort((a, b) => {
-            const priceA = parseFloat(a.dataset.price);
-            const priceB = parseFloat(b.dataset.price);
-            const nameA = a.dataset.name;
-            const nameB = b.dataset.name;
-
-            switch(sortValue) {
-                case 'price-low': return priceA - priceB;
-                case 'price-high': return priceB - priceA;
-                case 'name-asc': return nameA.localeCompare(nameB);
-                case 'name-desc': return nameB.localeCompare(nameA);
-                default: return 0;
-            }
-        });
-
-        // Show/hide items
+        // Hide all items first
         menuItems.forEach(item => item.style.display = 'none');
-        filteredItems.forEach(item => item.style.display = '');
+
+        // Re-append filtered items in sorted order to actually reorder the DOM
+        filteredItems.forEach(item => {
+            item.style.display = 'flex';
+            menuGrid.appendChild(item);
+        });
         
         // Update count
-        itemCountEl.textContent = filteredItems.length;
+        if(itemCountEl) itemCountEl.textContent = filteredItems.length;
     }
 
-    searchInput.addEventListener('input', filterItems);
-    sortSelect.addEventListener('change', filterItems);
-    priceFilters.forEach(cb => cb.addEventListener('change', filterItems));
+    if(searchInput) searchInput.addEventListener('input', filterItems);
+    if(sortSelect) sortSelect.addEventListener('change', filterItems);
 
     // Quick add to cart feedback
     document.querySelectorAll('.quick-add-form').forEach(form => {
@@ -336,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const btn = this.querySelector('button[type="submit"]');
             const originalHTML = btn.innerHTML;
             
-            btn.innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>';
+            btn.innerHTML = '<svg class="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>';
             
             fetch(this.action, {
                 method: 'POST',
@@ -353,28 +242,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json().then(data => ({ status: response.status, body: data }));
             })
             .then(result => {
-                if(!result) return; // handled by redirect
+                if(!result) return; 
                 const { status, body } = result;
                 if (status >= 200 && status < 300 && body.success) {
-                    btn.innerHTML = '<svg class="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+                    btn.innerHTML = '<svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>';
+                    btn.classList.replace('bg-emerald-600', 'bg-gray-900');
+                    btn.classList.replace('hover:bg-emerald-700', 'hover:bg-gray-800');
                     
                     // Update badges
                     const counts = document.querySelectorAll('.cart-count-badge');
                     counts.forEach(c => {
                         c.textContent = body.cartCount > 9 ? '9+' : body.cartCount;
                         c.classList.remove('hidden');
-                        c.classList.add('flex');
+                        c.classList.add('flex', 'items-center', 'justify-center');
                     });
                     
                     const floatingCart = document.getElementById('floating-cart');
                     const floatingCount = document.getElementById('floating-cart-count');
                     if (floatingCart && floatingCount) {
-                        floatingCount.textContent = body.cartCount;
+                        floatingCount.textContent = body.cartCount > 9 ? '9+' : body.cartCount;
                         floatingCart.classList.remove('translate-y-full', 'opacity-0');
                     }
                     
                     setTimeout(() => {
                         btn.innerHTML = originalHTML;
+                        btn.classList.replace('bg-gray-900', 'bg-emerald-600');
+                        btn.classList.replace('hover:bg-gray-800', 'hover:bg-emerald-700');
                     }, 2000);
                 } else {
                     btn.innerHTML = originalHTML;

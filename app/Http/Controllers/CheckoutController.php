@@ -11,6 +11,7 @@ use App\Models\OrderItem;
 use App\Services\PaymentService;
 use App\Services\StockService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -25,19 +26,34 @@ class CheckoutController extends Controller
      */
     public function index()
     {
+        if (!Auth::check()) {
+            return redirect()->route('login')->with('error', 'Please login to checkout.');
+        }
+
         $cartItems = Cart::with('menuItem')
-            ->where('user_id', auth()->id())
+            ->where('user_id', Auth::id())
             ->whereHas('menuItem')
-            ->where('quantity', '>', 0)
             ->get();
 
         if ($cartItems->isEmpty()) {
-            return redirect()->route('menu')->with('error', 'Your cart is empty.');
+            return redirect()->route('menu')->with('error', 'Your cart is empty. Please add items to your cart first.');
         }
 
         $total = $cartItems->sum(fn ($item) => (int) $item->quantity * $item->menuItem->price);
 
-        return view('customer.checkout.index', compact('cartItems', 'total'));
+        // Load saved payment methods for authenticated user
+        $savedCards = [];
+        $user = Auth::user();
+        if ($user->stripe_customer_id) {
+            try {
+                $savedCards = $this->paymentService->listSavedCards($user->stripe_customer_id);
+            } catch (\Exception $e) {
+                Log::warning('Failed to load saved cards: ' . $e->getMessage());
+                $savedCards = [];
+            }
+        }
+
+        return view('customer.checkout.index', compact('cartItems', 'total', 'savedCards'));
     }
 
     /**
@@ -45,39 +61,53 @@ class CheckoutController extends Controller
      */
     public function store(CheckoutRequest $request)
     {
+        if (!Auth::check()) {
+            return redirect()->route('login')->with('error', 'Please login to checkout.');
+        }
+
         $cartItems = Cart::with('menuItem')
-            ->where('user_id', auth()->id())
+            ->where('user_id', Auth::id())
             ->whereHas('menuItem')
-            ->where('quantity', '>', 0)
             ->get();
 
         if ($cartItems->isEmpty()) {
-            return redirect()->route('menu')->with('error', 'Your cart is empty.');
+            return redirect()->route('menu')->with('error', 'Your cart is empty. Please add items to your cart first.');
         }
 
         // Check stock availability
         $unavailable = StockService::checkStockAvailability($cartItems);
 
-        if (! empty($unavailable)) {
-            $messages = array_map(fn ($item) => "{$item['menu_item']} (needs {$item['required']}, only {$item['available']} available)",
-                $unavailable
-            );
+         if (! empty($unavailable)) {
+             $messages = array_map(fn ($item) => "{$item['menu_item']} (needs {$item['required']}, only {$item['available']} available)",
+                 $unavailable
+             );
 
-            return redirect()->route('cart')->with('error', 'Some items are out of stock: '.implode(', ', $messages));
-        }
+             return redirect()->route('cart')->with('error', 'Some items are out of stock: '.implode(', ', $messages));
+         }
 
-        $total = $cartItems->sum(fn ($item) => (int) $item->quantity * $item->menuItem->price);
+         $total = $cartItems->sum(function ($item) {
+             // Protect against null menuItem or price
+             return $item->menuItem && $item->menuItem->price !== null 
+                 ? (int) $item->quantity * (int) $item->menuItem->price 
+                 : 0;
+         });
 
         try {
             $order = null;
 
             DB::transaction(function () use ($cartItems, $request, $total, &$order) {
+                // Set initial payment status based on payment method
+                $initialPaymentStatus = 'pending';
+                if ($request->payment_method === 'kbz_pay') {
+                    $initialPaymentStatus = 'awaiting_verification';
+                }
+
                 $orderData = [
-                    'user_id' => auth()->id(),
+                    'user_id' => Auth::id(),
                     'status' => 'pending',
                     'total' => $total,
                     'payment_method' => $request->payment_method,
-                    'payment_status' => 'pending',
+                    'payment_status' => $initialPaymentStatus,
                 ];
 
                 // Add delivery info for COD orders
@@ -96,14 +126,17 @@ class CheckoutController extends Controller
                     ]);
                 }
 
-                foreach ($cartItems as $cartItem) {
-                    OrderItem::create([
-                        'order_id' => $order->id,
-                        'menu_item_id' => $cartItem->menu_item_id,
-                        'quantity' => (int) $cartItem->quantity,
-                        'price' => $cartItem->menuItem->price,
-                    ]);
-                }
+                 foreach ($cartItems as $cartItem) {
+                     OrderItem::create([
+                         'order_id' => $order->id,
+                         'menu_item_id' => $cartItem->menu_item_id,
+                         'quantity' => (int) $cartItem->quantity,
+                         'price' => $cartItem->menuItem && $cartItem->menuItem->price !== null 
+                             ? $cartItem->menuItem->price 
+                             : 0,
+                         'notes' => $cartItem->notes,
+                     ]);
+                 }
             });
 
             // Dispatch order created event for email notification only if not using Stripe right now
@@ -111,11 +144,14 @@ class CheckoutController extends Controller
                 event(new OrderCreated($order));
             }
 
-            // Create kitchen ticket for the order
-            KitchenTicket::create([
-                'order_id' => $order->id,
-                'status' => 'new',
-            ]);
+            // Create kitchen ticket ONLY for COD orders (payment collected on delivery)
+            // For KBZ Pay and other payment methods, KitchenTicket will be created after payment is verified
+            if ($request->payment_method === 'cod') {
+                KitchenTicket::create([
+                    'order_id' => $order->id,
+                    'status' => 'new',
+                ]);
+            }
 
             // Handle payment based on method
             if (str_starts_with($request->payment_method, 'saved_')) {
@@ -130,15 +166,20 @@ class CheckoutController extends Controller
                         'status' => 'confirmed',
                     ]);
                     event(new OrderCreated($order));
-                    Cart::where('user_id', auth()->id())->delete();
+                    Cart::where('user_id', Auth::id())->delete();
 
                     return redirect()->route('orders.show', $order->id)
                         ->with('success', 'Payment successful! Order confirmed.');
                 }
 
                 if ($paymentResult['status'] === 'requires_action') {
-                    // Need 3D authentication - redirect to Stripe
-                    return redirect($paymentResult['client_secret']);
+                    // Need 3D authentication - redirect to Stripe hosted authentication
+                    // The client_secret contains the PaymentIntent ID, we need to redirect to Stripe's authentication URL
+                    $paymentIntentId = $paymentResult['payment_intent'];
+                    $clientSecret = $paymentResult['client_secret'];
+                    
+                    // Redirect to Stripe's 3D Secure authentication page
+                    return redirect("https://checkout.stripe.com/cpay/{$paymentIntentId}");
                 }
 
                 throw new \Exception('Payment failed: ' . $paymentResult['status']);
@@ -150,7 +191,7 @@ class CheckoutController extends Controller
                 // Only create customer when user wants to save card
                 $customerId = null;
                 if ($saveCard) {
-                    $customerId = $this->paymentService->getOrCreateCustomer(auth()->user());
+                    $customerId = $this->paymentService->getOrCreateCustomer(Auth::user());
                 }
 
                 $paymentResult = $this->paymentService->processPayment($order, 'stripe', $cartItems, $saveCard, $customerId);
@@ -164,8 +205,16 @@ class CheckoutController extends Controller
                 throw new \Exception($paymentResult['error'] ?? 'Failed to create payment session');
             }
 
-            // For COD and other methods, clear cart and redirect to order page
-            Cart::where('user_id', auth()->id())->delete();
+            // For KBZ Pay and other non-immediate payment methods, redirect to order page to upload payment
+            if ($request->payment_method === 'kbz_pay') {
+                Cart::where('user_id', Auth::id())->delete();
+                
+                return redirect()->route('orders.show', $order->id)
+                    ->with('info', 'Order placed! Please upload your KBZ Pay payment screenshot to complete the order.');
+            }
+
+            // For COD and other immediate methods, clear cart and redirect to order page
+            Cart::where('user_id', Auth::id())->delete();
 
             return redirect()->route('orders.show', $order->id)
                 ->with('success', 'Order placed successfully!');
@@ -214,7 +263,7 @@ class CheckoutController extends Controller
             $order = Order::findOrFail($orderId);
 
             // SECURITY: Ensure the order belongs to the currently authenticated user (IDOR fix)
-            if ($order->user_id !== auth()->id()) {
+            if ($order->user_id !== Auth::id()) {
                 abort(403, 'This payment does not belong to your account.');
             }
 
@@ -233,10 +282,16 @@ class CheckoutController extends Controller
                     'status' => 'confirmed',
                 ]);
 
+                // Create kitchen ticket after payment confirmed via Stripe
+                KitchenTicket::create([
+                    'order_id' => $order->id,
+                    'status' => 'new',
+                ]);
+
                 // Order is fully paid and confirmed via Stripe, so now we can emit the event
                 event(new OrderCreated($order));
 
-                Cart::where('user_id', auth()->id())->delete();
+                Cart::where('user_id', Auth::id())->delete();
 
                 return redirect()->route('orders.show', $order->id)
                     ->with('success', 'Payment successful! Order confirmed.');

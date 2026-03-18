@@ -11,21 +11,34 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        $adminRole = Role::where('name', 'admin')->first();
-        $staffRole = Role::where('name', 'staff')->first();
+        $superAdminRole = Role::where('slug', 'super_admin')->first();
+        $adminRole = Role::where('slug', 'admin')->first();
+        $staffRole = Role::where('slug', 'staff')->first();
+        $customerRole = Role::where('slug', 'customer')->first();
 
-        $alice = User::create([
-            'name' => 'Alice',
-            'email' => 'alice@cafe.com',
+        // Super Admin
+        $superAdmin = User::create([
+            'name' => 'Super Admin',
+            'email' => 'superadmin@cafe.com',
             'password' => Hash::make('password'),
             'phone' => '09123456789',
             'address' => 'Yangon, Myanmar',
             'email_verified_at' => now(),
+            'role_id' => $superAdminRole->id,
         ]);
 
-        $alice->role_id = $adminRole->id;
-        $alice->save();
+        // Regular Admin
+        $admin = User::create([
+            'name' => 'Admin',
+            'email' => 'admin@cafe.com',
+            'password' => Hash::make('password'),
+            'phone' => '09123456788',
+            'address' => 'Yangon, Myanmar',
+            'email_verified_at' => now(),
+            'role_id' => $adminRole->id,
+        ]);
 
+        // Regular Customer
         User::create([
             'name' => 'Bob',
             'email' => 'bob@cafe.com',
@@ -33,22 +46,23 @@ class UserSeeder extends Seeder
             'phone' => '09987654321',
             'address' => 'Mandalay, Myanmar',
             'email_verified_at' => now(),
+            'role_id' => $customerRole ? $customerRole->id : null,
         ]);
 
+        // Staff users
         $staffNames = ['Staff One', 'Staff Two', 'Staff Three'];
         $staffEmails = ['staff1@cafe.com', 'staff2@cafe.com', 'staff3@cafe.com'];
 
         for ($i = 0; $i < 3; $i++) {
-            $staff = User::create([
+            User::create([
                 'name' => $staffNames[$i],
                 'email' => $staffEmails[$i],
                 'password' => Hash::make('password'),
                 'phone' => '09'.rand(100000000, 999999999),
                 'address' => 'Cafe Address',
                 'email_verified_at' => now(),
+                'role_id' => $staffRole->id,
             ]);
-            $staff->role_id = $staffRole->id;
-            $staff->save();
         }
     }
 }

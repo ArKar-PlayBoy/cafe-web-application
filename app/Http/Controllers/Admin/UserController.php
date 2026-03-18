@@ -33,7 +33,7 @@ class UserController extends Controller
         if ($currentUser->isSuperAdmin()) {
             $roles = Role::all();
         } else {
-            $roles = Role::whereNotIn('slug', ['super_admin', 'admin'])->get();
+            $roles = Role::whereNotIn('slug', ['super_admin'])->get();
         }
 
         return view('admin.users.create', compact('roles'));
@@ -47,7 +47,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8',
-            'role_id' => 'nullable|exists:roles,id',
+            'role_id' => 'required|exists:roles,id',
             'phone' => 'nullable|string',
             'address' => 'nullable|string',
         ]);
@@ -56,8 +56,8 @@ class UserController extends Controller
         $role = Role::find($request->role_id);
 
         // Security checks
-        if ($role && in_array($role->slug, ['super_admin', 'admin']) && !$currentUser->isSuperAdmin()) {
-            return back()->with('error', 'You do not have permission to create admin users.');
+        if ($role && in_array($role->slug, ['super_admin']) && !$currentUser->isSuperAdmin()) {
+            return back()->with('error', 'You do not have permission to create Super Admin users.');
         }
 
         $user = User::create([
@@ -107,7 +107,7 @@ class UserController extends Controller
         if ($currentUser->isSuperAdmin()) {
             $roles = Role::all();
         } else {
-            $roles = Role::whereNotIn('slug', ['super_admin', 'admin'])->get();
+            $roles = Role::whereNotIn('slug', ['super_admin'])->get();
         }
 
         return view('admin.users.edit', compact('user', 'roles'));
@@ -131,7 +131,7 @@ class UserController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,'.$user->id,
-            'role_id' => 'nullable|exists:roles,id',
+            'role_id' => 'required|exists:roles,id',
             'phone' => 'nullable|string',
             'address' => 'nullable|string',
             'password' => 'nullable|string|min:8',
@@ -139,13 +139,13 @@ class UserController extends Controller
 
         $role = Role::find($request->role_id);
 
-        // Prevent non-super admins from assigning super_admin or admin roles
-        if ($role && in_array($role->slug, ['super_admin', 'admin']) && !$currentUser->isSuperAdmin()) {
-            return back()->with('error', 'You do not have permission to assign admin roles.');
+        // Prevent non-super admins from assigning super_admin roles
+        if ($role && in_array($role->slug, ['super_admin']) && !$currentUser->isSuperAdmin()) {
+            return back()->with('error', 'You do not have permission to assign Super Admin role.');
         }
 
         // Prevent self-demotion from admin
-        if ($currentUser->id === $user->id && $currentUser->isAdmin() && $role && !$role->isSuperAdmin) {
+        if ($currentUser->id === $user->id && $currentUser->isAdmin() && $role && !$role->isSuperAdmin()) {
             return back()->with('error', 'You cannot demote yourself from admin.');
         }
 

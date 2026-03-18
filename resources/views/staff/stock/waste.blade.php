@@ -19,11 +19,11 @@
 
     <div class="mb-4">
         <label class="block text-sm font-medium mb-2 dark:text-gray-300">Reason</label>
-        <select name="reason" class="w-full border rounded px-3 py-2 dark:bg-gray-800 dark:border-gray-700" required>
-            <option value="Expired">Expired</option>
-            <option value="Damaged">Damaged</option>
-            <option value="Spilled">Spilled</option>
-            <option value="Other">Other</option>
+        <select name="reason" class="w-full border rounded px-3 py-2 bg-white text-gray-900 dark:bg-slate-800 dark:border-slate-700 dark:text-white" required>
+            <option value="Expired" class="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Expired</option>
+            <option value="Damaged" class="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Damaged</option>
+            <option value="Spilled" class="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Spilled</option>
+            <option value="Other" class="bg-white text-gray-900 dark:bg-slate-800 dark:text-white">Other</option>
         </select>
     </div>
 

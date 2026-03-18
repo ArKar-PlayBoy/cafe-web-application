@@ -27,15 +27,24 @@
                     <span class="px-3 py-1 text-sm rounded-full {{ $order->status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : ($order->status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : ($order->status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400')) }}">
                         {{ ucfirst($order->status) }}
                     </span>
-                    @if($order->status === 'cancelled' && $order->rejection)
+                    @if($order->status === 'cancelled')
+                        @if($order->rejection)
                         <p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ $order->rejection->reason }}</p>
+                        @elseif($order->payment_note)
+                        <p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ $order->payment_note }}</p>
+                        @endif
                     @endif
                 </div>
             </div>
             <div class="flex justify-between items-center">
                 <div>
                     @foreach($order->items as $item)
-                    <p class="text-gray-600 dark:text-gray-400">{{ $item->quantity }}x {{ $item->menuItem->name }}</p>
+                    <p class="text-gray-600 dark:text-gray-400">
+                        {{ $item->quantity }}x {{ $item->menuItem->name }}
+                        @if($item->notes)
+                        <span class="text-blue-600 dark:text-blue-400 text-xs ml-1">({{ $item->notes }})</span>
+                        @endif
+                    </p>
                     @endforeach
                 </div>
                 <div class="text-right">

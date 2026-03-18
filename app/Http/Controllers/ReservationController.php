@@ -30,6 +30,8 @@ class ReservationController extends Controller
     public function store(Request $request)
     {
         $request->validate([
+            'customer_name' => 'required|string|max:100',
+            'customer_phone' => 'required|string|max:20',
             'reservation_date' => 'required|date|after_or_equal:today',
             'reservation_time' => 'required|date_format:H:i',
             'party_size' => 'required|integer|min:1|max:20',
@@ -102,6 +104,8 @@ class ReservationController extends Controller
 
             Reservation::create([
                 'user_id' => auth()->id(),
+                'customer_name' => $request->customer_name,
+                'customer_phone' => $request->customer_phone,
                 'table_id' => $tableId,
                 'reservation_date' => $request->reservation_date,
                 'reservation_time' => $request->reservation_time,
@@ -116,5 +120,75 @@ class ReservationController extends Controller
 
             return redirect()->route('reservations.index')->with('success', $message);
         });
+    }
+
+    public function checkAvailability(Request $request)
+    {
+        $request->validate([
+            'table_id' => 'nullable|required_without:table_number|exists:cafe_tables,id',
+            'table_number' => 'nullable|required_without:table_id|exists:cafe_tables,table_number',
+            'reservation_date' => 'required|date|after_or_equal:today',
+            'reservation_time' => 'required|date_format:H:i',
+            'party_size' => 'required|integer|min:1|max:20',
+        ]);
+
+        $tableId = $request->table_id;
+        
+        if (!$tableId && $request->table_number) {
+            $table = CafeTable::where('table_number', $request->table_number)->first();
+            $tableId = $table?->id;
+        }
+
+        if (!$tableId) {
+            return response()->json([
+                'available' => false,
+                'message' => 'Please select a table',
+            ]);
+        }
+
+        $table = CafeTable::find($tableId);
+        
+        if ($table->status !== 'available') {
+            return response()->json([
+                'available' => false,
+                'message' => 'This table is not available',
+            ]);
+        }
+
+        if ($table->capacity < $request->party_size) {
+            return response()->json([
+                'available' => false,
+                'message' => 'Table capacity is too small for ' . $request->party_size . ' persons',
+            ]);
+        }
+
+        $reservationDateTime = \Carbon\Carbon::parse(
+            $request->reservation_date . ' ' . $request->reservation_time
+        );
+
+        $windowStart = $reservationDateTime->copy()->subHours(2);
+        $windowEnd = $reservationDateTime->copy()->addHours(2);
+
+        $conflict = Reservation::where('table_id', $table->id)
+            ->whereIn('status', ['pending', 'confirmed'])
+            ->where(function ($query) use ($windowStart, $windowEnd) {
+                $query->whereRaw(
+                    "CONCAT(reservation_date, ' ', reservation_time) BETWEEN ? AND ?",
+                    [$windowStart->format('Y-m-d H:i:s'), $windowEnd->format('Y-m-d H:i:s')]
+                );
+            })
+            ->exists();
+
+        if ($conflict) {
+            return response()->json([
+                'available' => false,
+                'message' => 'This table is already reserved around that time',
+            ]);
+        }
+
+        return response()->json([
+            'available' => true,
+            'message' => 'Table is available!',
+        ]);
     }
 }

@@ -11,6 +11,10 @@ class CartController extends Controller
 {
     public function index()
     {
+        if (!auth()->check()) {
+            return redirect()->route('login')->with('error', 'Please login to view your cart.');
+        }
+
         $cartItems = Cart::with('menuItem')
             ->where('user_id', auth()->id())
             ->whereHas('menuItem')
@@ -25,6 +29,13 @@ class CartController extends Controller
 
     public function add(Request $request, MenuItem $menuItem)
     {
+        if (!auth()->check()) {
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Please login to add items to cart.'], 401);
+            }
+            return redirect()->route('login')->with('error', 'Please login to add items to cart.');
+        }
+
         if (! $menuItem->is_available) {
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'This item is not available.'], 400);
@@ -35,55 +46,65 @@ class CartController extends Controller
 
         $quantity = max(1, (int) $request->input('quantity', 1));
 
-        $cartItem = Cart::where('user_id', auth()->id())
-            ->where('menu_item_id', $menuItem->id)
-            ->first();
+        try {
+            $cartItem = Cart::where('user_id', auth()->id())
+                ->where('menu_item_id', $menuItem->id)
+                ->first();
 
-        $menuItem->loadMissing('stockItems');
+            $menuItem->loadMissing('stockItems');
 
-        $newQuantity = $cartItem ? ((int) $cartItem->quantity + $quantity) : $quantity;
-        $fakeCart = (object) [
-            'menuItem' => $menuItem,
-            'quantity' => $newQuantity,
-        ];
+            $newQuantity = $cartItem ? ((int) $cartItem->quantity + $quantity) : $quantity;
+            $fakeCart = (object) [
+                'menuItem' => $menuItem,
+                'quantity' => $newQuantity,
+            ];
 
-        $unavailable = StockService::checkStockAvailability([$fakeCart]);
+            $unavailable = StockService::checkStockAvailability([$fakeCart]);
 
-        if (! empty($unavailable)) {
-            $messages = array_map(function ($item) {
-                return "{$item['menu_item']} (needs {$item['required']}, only {$item['available']} available)";
-            }, $unavailable);
+            if (! empty($unavailable)) {
+                $messages = array_map(function ($item) {
+                    return "{$item['menu_item']} (needs {$item['required']}, only {$item['available']} available)";
+                }, $unavailable);
 
-            $errorMsg = 'Cannot add item: out of stock - '.implode(', ', $messages);
-            if ($request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => $errorMsg], 400);
+                $errorMsg = 'Cannot add item: out of stock - '.implode(', ', $messages);
+                if ($request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $errorMsg], 400);
+                }
+
+                return back()->with('error', $errorMsg);
             }
 
-            return back()->with('error', $errorMsg);
+            if ($cartItem) {
+                $cartItem->quantity = (int) $cartItem->quantity + (int) $quantity;
+                $cartItem->notes = $request->input('notes', $cartItem->notes);
+                $cartItem->save();
+            } else {
+                Cart::create([
+                    'user_id' => auth()->id(),
+                    'menu_item_id' => $menuItem->id,
+                    'quantity' => $quantity,
+                    'notes' => $request->input('notes'),
+                ]);
+            }
+
+            if ($request->wantsJson()) {
+                $cartCount = Cart::where('user_id', auth()->id())->sum('quantity');
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Item(s) added to cart.',
+                    'cartCount' => $cartCount,
+                ]);
+            }
+
+            return redirect()->route('cart')->with('success', 'Item(s) added to cart.');
+            
+        } catch (\Exception $e) {
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+            }
+            return back()->with('error', 'Error adding item to cart: ' . $e->getMessage());
         }
-
-        if ($cartItem) {
-            $cartItem->quantity = (int) $cartItem->quantity + (int) $quantity;
-            $cartItem->save();
-        } else {
-            Cart::create([
-                'user_id' => auth()->id(),
-                'menu_item_id' => $menuItem->id,
-                'quantity' => $quantity,
-            ]);
-        }
-
-        if ($request->wantsJson()) {
-            $cartCount = Cart::where('user_id', auth()->id())->sum('quantity');
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Item(s) added to cart.',
-                'cartCount' => $cartCount,
-            ]);
-        }
-
-        return redirect()->route('cart')->with('success', 'Item(s) added to cart.');
     }
 
     public function update(Request $request, Cart $cartItem)
@@ -96,7 +117,10 @@ class CartController extends Controller
             'quantity' => 'required|integer|min:1|max:99',
         ]);
 
-        $cartItem->update(['quantity' => (int) $request->quantity]);
+        $cartItem->update([
+            'quantity' => (int) $request->quantity,
+            'notes' => $request->input('notes', $cartItem->notes),
+        ]);
 
         return back()->with('success', 'Cart updated.');
     }

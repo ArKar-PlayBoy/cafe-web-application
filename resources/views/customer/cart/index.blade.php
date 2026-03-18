@@ -23,15 +23,18 @@
             @php($cartTotal += $itemTotal)
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex gap-4">
                 <img src="{{ $item->menuItem->featured_image }}" alt="{{ $item->menuItem->name }}" class="w-24 h-24 object-cover rounded-lg">
-                <div class="flex-1">
-                    <h3 class="font-semibold text-lg">{{ $item->menuItem->name }}</h3>
-                    <p class="text-green-600 dark:text-green-400 font-bold">${{ number_format($item->menuItem->price, 2) }}</p>
-                    <form action="{{ route('cart.update', $item->id) }}" method="POST" class="flex items-center gap-2 mt-2 cart-update-form">
-                        @csrf @method('PUT')
-                        <input type="number" name="quantity" value="{{ $item->quantity }}" min="1" max="99" class="w-16 border dark:border-gray-600 dark:bg-gray-700 rounded px-2 py-1 quantity-input" data-price="{{ $item->menuItem->price }}" data-item-id="{{ $item->id }}">
-                        <button type="submit" class="text-green-600 dark:text-green-400 hover:underline">Update</button>
-                    </form>
-                </div>
+                 <div class="flex-1">
+                     <h3 class="font-semibold text-lg">{{ $item->menuItem->name }}</h3>
+                     <p class="text-green-600 dark:text-green-400 font-bold">${{ number_format($item->menuItem->price, 2) }}</p>
+                     <form action="{{ route('cart.update', $item->id) }}" method="POST" class="flex items-center gap-2 mt-2 cart-update-form">
+                         @csrf @method('PUT')
+                         <input type="number" name="quantity" value="{{ $item->quantity }}" min="1" max="99" class="w-16 border dark:border-gray-600 dark:bg-gray-700 rounded px-2 py-1 quantity-input" data-price="{{ $item->menuItem->price }}" data-item-id="{{ $item->id }}">
+                         <button type="submit" class="text-green-600 dark:text-green-400 hover:underline">Update</button>
+                     </form>
+                     @if($item->notes)
+                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Note: {{ $item->notes }}</p>
+                     @endif
+                 </div>
                 <div class="text-right">
                     <p class="font-bold text-lg item-total" data-item-total="{{ $itemTotal }}">${{ number_format($itemTotal, 2) }}</p>
                     <form action="{{ route('cart.remove', $item->id) }}" method="POST" class="mt-2">

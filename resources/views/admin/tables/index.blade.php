@@ -10,7 +10,7 @@
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     @foreach($tables as $table)
-    <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border border-gray-100 dark:border-slate-700 p-6 rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+    <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border border-gray-100 dark:border-slate-700 p-6 rounded-2xl shadow-lg hover:shadow-sm hover:-translate-y-1 transition-all duration-300">
         <div class="flex justify-between items-center">
             <h3 class="font-bold text-xl text-gray-900 dark:text-gray-100">{{ $table->table_number }}</h3>
             <span class="px-2 py-1 text-xs rounded {{ $table->status === 'available' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : ($table->status === 'reserved' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300') }}">

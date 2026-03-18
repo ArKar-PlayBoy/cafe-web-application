@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\KitchenTicket;
 use App\Models\Order;
 use Illuminate\Http\Request;
 
@@ -25,13 +26,30 @@ class OrderController extends Controller
             return back()->with('error', 'No payment screenshot to verify or already verified.');
         }
 
+        $previousStatus = $order->payment_status;
+
         $order->update([
             'payment_status' => 'verified',
             'payment_verified_at' => now(),
             'payment_verified_by' => auth('admin')->id(),
+            'status' => 'preparing',
         ]);
 
-        return back()->with('success', 'Payment verified successfully.');
+        \Illuminate\Support\Facades\Log::info('Payment verified by admin', [
+            'order_id' => $order->id,
+            'previous_status' => $previousStatus,
+            'new_status' => 'verified',
+            'admin_id' => auth('admin')->id(),
+        ]);
+
+        // Create kitchen ticket after payment verified
+        KitchenTicket::create([
+            'order_id' => $order->id,
+            'status' => 'new',
+        ]);
+
+        return redirect()->route('admin.orders.view-screenshot', $order->id)
+            ->with('success', 'Payment verified successfully.');
     }
 
     public function rejectPayment(Request $request, Order $order)
@@ -51,9 +69,11 @@ class OrderController extends Controller
             'payment_note' => $request->note,
             'payment_verified_at' => now(),
             'payment_verified_by' => auth('admin')->id(),
+            'status' => 'cancelled',
         ]);
 
-        return back()->with('error', 'Payment rejected.');
+        return redirect()->route('admin.orders.view-screenshot', $order->id)
+            ->with('error', 'Payment rejected.');
     }
 
     public function viewScreenshot(Order $order)
@@ -68,14 +88,13 @@ class OrderController extends Controller
         $this->authorize('orders.view');
 
         if (!$order->payment_screenshot) {
-            abort(404);
+            abort(404, 'No payment screenshot uploaded for this order.');
         }
 
-        $filename = basename($order->payment_screenshot);
-        $path = storage_path('app/public/payment_screenshots/' . $filename);
+        $path = storage_path('app/public/' . $order->payment_screenshot);
 
         if (!file_exists($path)) {
-            abort(404);
+            abort(404, 'Payment screenshot file not found on server.');
         }
 
         return response()->file($path);

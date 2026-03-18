@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Cart;
+use App\Models\KitchenTicket;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
@@ -210,6 +211,12 @@ class PaymentService
             'payment_status' => 'paid',
             'payment_reference' => $session['payment_intent'] ?? null,
             'status' => 'confirmed',
+        ]);
+
+        // Create kitchen ticket after payment confirmed
+        KitchenTicket::create([
+            'order_id' => $order->id,
+            'status' => 'new',
         ]);
 
         // Clear cart after successful payment

@@ -1,5 +1,9 @@
 @extends('layouts.staff')
 
+@php
+use Illuminate\Support\Str;
+@endphp
+
 @section('title', 'Orders')
 
 @section('content')
@@ -20,15 +24,20 @@
         </thead>
         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
             @foreach($orders as $order)
-            <tr class="text-gray-900 dark:text-white">
-                <td class="px-4 py-4">#{{ $order->id }}</td>
-                <td class="px-4 py-4">{{ $order->user->name }}</td>
-                <td class="px-4 py-4 text-sm">
+            <tr class="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700">
+                <td class="px-4 py-4 whitespace-nowrap">#{{ $order->id }}</td>
+                <td class="px-4 py-4 whitespace-nowrap text-gray-900 dark:text-gray-100">{{ $order->user->name }}</td>
+                <td class="px-4 py-4 text-sm text-gray-900 dark:text-gray-100">
                     @foreach($order->items as $item)
-                    <div>{{ $item->quantity }}x {{ $item->menuItem->name ?? 'N/A' }}</div>
+                    <div>
+                        {{ $item->quantity }}x {{ $item->menuItem->name ?? 'N/A' }}
+                        @if($item->notes)
+                        <span class="text-blue-600 dark:text-blue-400 text-xs">({{ $item->notes }})</span>
+                        @endif
+                    </div>
                     @endforeach
                 </td>
-                <td class="px-4 py-4">${{ number_format($order->total, 2) }}</td>
+                <td class="px-4 py-4 whitespace-nowrap text-gray-900 dark:text-gray-100">${{ number_format($order->total, 2) }}</td>
                 <td class="px-4 py-4">
                     <div class="flex flex-col gap-1">
                         <span class="text-xs text-gray-500 dark:text-gray-400">{{ strtoupper($order->payment_method) }}</span>
@@ -37,25 +46,60 @@
                             {{ ucfirst(str_replace('_', ' ', $order->payment_status)) }}
                         </span>
                         @if($order->payment_screenshot)
-                        <a href="{{ asset('storage/' . $order->payment_screenshot) }}" target="_blank" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">View Screenshot</a>
+                        <a href="{{ route('staff.orders.view-screenshot', ['order' => $order->id]) }}" target="_blank" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">View Screenshot</a>
+                        @endif
+                        @else
+                        <span class="px-2 py-0.5 text-xs rounded-full 
+                            @if($order->delivery_status === 'delivered') bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300
+                            @elseif($order->delivery_status === 'out_for_delivery') bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300
+                            @elseif($order->delivery_status === 'failed') bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300
+                            @else bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300 @endif">
+                            {{ ucfirst(str_replace('_', ' ', $order->delivery_status)) }}
+                        </span>
+                        @if($order->delivery_address)
+                        <span class="text-xs text-gray-500 dark:text-gray-400" title="{{ $order->delivery_address }}">
+                            📍 {{ Str::limit($order->delivery_address, 15) }}
+                        </span>
+                        @endif
+                        @if($order->delivery_phone)
+                        <span class="text-xs text-gray-500 dark:text-gray-400">
+                            📞 {{ $order->delivery_phone }}
+                        </span>
                         @endif
                         @endif
                     </div>
                 </td>
                 <td class="px-4 py-4">
-                    @if($order->status === 'cancelled' && $order->rejection)
+                    @if($order->status === 'cancelled')
                         <span class="px-2 py-1 text-xs rounded bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                            Rejected
+                            Cancelled
+                        </span>
+                        @if($order->rejection)
+                        <div class="text-xs text-red-600 dark:text-red-400 mt-1">{{ $order->rejection->reason }}</div>
+                        @elseif($order->payment_note)
+                        <div class="text-xs text-red-600 dark:text-red-400 mt-1">{{ $order->payment_note }}</div>
+                        @endif
+                    @elseif($order->status === 'preparing')
+                        <span class="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            Preparing
+                        </span>
+                    @elseif($order->status === 'ready')
+                        <span class="px-2 py-1 text-xs rounded bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200">
+                            Ready
+                        </span>
+                    @elseif($order->status === 'completed')
+                        <span class="px-2 py-1 text-xs rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                            Completed
                         </span>
                     @else
-                        <span class="px-2 py-1 text-xs rounded {{ $order->status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : ($order->status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200') }}">
-                            {{ ucfirst($order->status) }}
+                        <span class="px-2 py-1 text-xs rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                            Pending
                         </span>
                     @endif
                 </td>
-                <td class="px-4 py-4">
-                    @if($order->status !== 'cancelled' && $order->status !== 'completed')
-                    @if($order->payment_method !== 'cod' && $order->payment_status !== 'verified' && $order->payment_screenshot)
+                <td class="px-4 py-4 text-gray-900 dark:text-gray-100">
+                    {{-- Payment Verification (Staff can do this) --}}
+                    @if($order->payment_method !== 'cod' && $order->payment_status !== 'verified' && $order->payment_status !== 'paid' && $order->payment_screenshot)
                     <div class="flex flex-col gap-2 mb-2">
                         <form action="{{ route('staff.orders.verify-payment', $order->id) }}" method="POST">
                             @csrf
@@ -69,7 +113,7 @@
                                 @csrf
                                 <div class="mb-4">
                                     <label class="block text-sm font-medium mb-2 dark:text-gray-300">Reason for rejection</label>
-                                    <textarea name="note" rows="3" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:border-gray-600" required placeholder="Explain why payment is rejected..."></textarea>
+                                    <textarea name="note" rows="3" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required placeholder="Explain why payment is rejected..."></textarea>
                                 </div>
                                 <div class="flex gap-2">
                                     <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Reject Payment</button>
@@ -78,57 +122,15 @@
                             </form>
                         </dialog>
                     </div>
-                    @endif
-                    
-                    <form action="{{ route('staff.orders.status', $order->id) }}" method="POST" class="inline">
-                        @csrf @method('PUT')
-                        <select name="status" class="border rounded px-2 py-1 text-sm dark:bg-gray-700 dark:text-white" onchange="this.form.submit()">
-                            <option value="pending" {{ $order->status === 'pending' ? 'selected' : '' }}>Pending</option>
-                            <option value="preparing" {{ $order->status === 'preparing' ? 'selected' : '' }}>Preparing</option>
-                            <option value="ready" {{ $order->status === 'ready' ? 'selected' : '' }}>Ready</option>
-                            <option value="completed" {{ $order->status === 'completed' ? 'selected' : '' }}>Completed</option>
-                            <option value="cancelled" {{ $order->status === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-                        </select>
-                    </form>
-                    <button type="button" onclick="document.getElementById('rejectModal{{ $order->id }}').showModal()" class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 ml-2">
-                        Reject
-                    </button>
-                    
-                    <dialog id="rejectModal{{ $order->id }}" class="modal p-6 rounded-lg shadow-xl dark:bg-gray-800">
-                        <h3 class="text-lg font-bold mb-4 dark:text-white">Reject Order #{{ $order->id }}</h3>
-                        <form action="{{ route('staff.orders.reject', $order->id) }}" method="POST">
-                            @csrf
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium mb-2 dark:text-gray-300">Reason</label>
-                                <select name="reason" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:border-gray-600" required>
-                                    <option value="">Select a reason</option>
-                                    <option value="Out of Stock">Out of Stock</option>
-                                    <option value="Expired Item">Expired Item</option>
-                                    <option value="Damaged Item">Damaged Item</option>
-                                    <option value="Customer Request">Customer Request</option>
-                                    <option value="Kitchen Closed">Kitchen Closed</option>
-                                    <option value="Other">Other</option>
-                                </select>
-                            </div>
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium mb-2 dark:text-gray-300">Note (Optional)</label>
-                                <textarea name="note" rows="2" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:border-gray-600"></textarea>
-                            </div>
-                            <div class="flex gap-2">
-                                <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">Reject Order</button>
-                                <button type="button" onclick="document.getElementById('rejectModal{{ $order->id }}').close()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Cancel</button>
-                            </div>
-                        </form>
-                    </dialog>
                     @else
-                        <span class="text-gray-400 text-sm">No actions available</span>
+                    <span class="text-gray-400 dark:text-gray-500 text-sm">View only - Kitchen manages status</span>
                     @endif
                 </td>
             </tr>
             @endforeach
         </tbody>
     </table>
-    <div class="px-6 py-4">
+    <div class="px-6 py-4 bg-white dark:bg-gray-800">
         {{ $orders->links() }}
     </div>
 </div>

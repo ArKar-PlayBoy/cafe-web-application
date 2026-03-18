@@ -12,6 +12,8 @@ class KitchenController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorize('orders.manage');
+        
         $filter = $request->get('filter', 'all');
 
         $query = KitchenTicket::with(['order.user', 'order.items.menuItem'])
@@ -39,12 +41,13 @@ class KitchenController extends Controller
 
     public function updateStatus(Request $request, KitchenTicket $ticket)
     {
+        $this->authorize('orders.manage');
         $request->validate([
             'status' => 'required|in:preparing,ready,completed',
         ]);
-
+        
         $ticket->update(['status' => $request->status]);
-
+        
         if ($request->status === 'preparing') {
             $ticket->markAsPreparing();
             $ticket->order->update(['status' => 'preparing']);
@@ -55,18 +58,22 @@ class KitchenController extends Controller
             $ticket->markAsCompleted();
             $ticket->order->update(['status' => 'completed']);
         }
-
+        
         return back()->with('success', 'Ticket updated.');
     }
 
     public function markPrinted(KitchenTicket $ticket)
     {
+        $this->authorize('orders.manage');
+
         $ticket->markPrinted();
         return back()->with('success', 'Marked as printed.');
     }
 
     public function getNewTickets(Request $request)
     {
+        $this->authorize('orders.manage');
+
         $lastId = $request->get('last_id', 0);
         
         $tickets = KitchenTicket::with(['order.user', 'order.items.menuItem'])
@@ -86,6 +93,8 @@ class KitchenController extends Controller
 
     public function getActiveCount()
     {
+        $this->authorize('orders.manage');
+
         $count = KitchenTicket::whereHas('order', function ($q) {
             $q->whereIn('status', ['pending', 'preparing', 'ready']);
         })->count();

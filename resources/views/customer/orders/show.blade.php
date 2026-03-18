@@ -38,9 +38,14 @@
         <div class="border-t dark:border-gray-700 pt-6">
             <h2 class="font-semibold text-lg mb-4">Order Items</h2>
             @foreach($order->items as $item)
-            <div class="flex justify-between py-2 text-gray-600 dark:text-gray-400">
-                <span>{{ $item->quantity }}x {{ $item->menuItem->name }}</span>
-                <span>${{ number_format($item->quantity * $item->price, 2) }}</span>
+            <div class="py-2 text-gray-600 dark:text-gray-400">
+                <div class="flex justify-between">
+                    <span>{{ $item->quantity }}x {{ $item->menuItem->name }}</span>
+                    <span>${{ number_format($item->quantity * $item->price, 2) }}</span>
+                </div>
+                @if($item->notes)
+                <div class="text-sm text-blue-600 dark:text-blue-400 mt-1">Note: {{ $item->notes }}</div>
+                @endif
             </div>
             @endforeach
             <hr class="my-3 dark:border-gray-700">
@@ -58,6 +63,41 @@
                     {{ ucfirst($order->payment_status) }}
                 </span>
             </p>
+            
+            {{-- COD Delivery Information --}}
+            @if($order->payment_method === 'cod')
+            <div class="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                <h3 class="font-medium text-yellow-800 dark:text-yellow-200 mb-2">Cash on Delivery</h3>
+                <p class="text-sm text-yellow-700 dark:text-yellow-300 mb-3">
+                    Payment will be collected upon delivery. Please ensure someone is available to receive the order and have the payment ready.
+                </p>
+                
+                @if($order->delivery_address || $order->delivery_phone)
+                <div class="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-800">
+                    @if($order->delivery_address)
+                    <p class="text-sm text-yellow-700 dark:text-yellow-300"><strong>Delivery Address:</strong> {{ $order->delivery_address }}</p>
+                    @endif
+                    @if($order->delivery_phone)
+                    <p class="text-sm text-yellow-700 dark:text-yellow-300"><strong>Contact Phone:</strong> {{ $order->delivery_phone }}</p>
+                    @endif
+                </div>
+                @endif
+                
+                @if($order->delivery_status)
+                <div class="mt-3 pt-3 border-t border-yellow-200 dark:border-yellow-800">
+                    <p class="text-sm text-yellow-700 dark:text-yellow-300"><strong>Delivery Status:</strong> 
+                        <span class="font-semibold">{{ ucfirst(str_replace('_', ' ', $order->delivery_status)) }}</span>
+                    </p>
+                    @if($order->delivery_status === 'delivered' && $order->delivered_at)
+                    <p class="text-sm text-yellow-700 dark:text-yellow-300">Delivered on: {{ $order->delivered_at->format('M d, Y H:i') }}</p>
+                    @endif
+                    @if($order->delivery_status === 'failed' && $order->delivery_failed_reason)
+                    <p class="text-sm text-red-600 dark:text-red-400">Reason: {{ $order->delivery_failed_reason }}</p>
+                    @endif
+                </div>
+                @endif
+            </div>
+            @endif
             @if($order->payment_status === 'failed' && $order->payment_note)
                 <p class="text-sm text-red-600 dark:text-red-400 mt-1">Reason: {{ $order->payment_note }}</p>
             @endif
@@ -66,10 +106,14 @@
             <div class="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                 <h3 class="font-medium text-yellow-800 dark:text-yellow-200 mb-2">Payment Instructions</h3>
                 <p class="text-sm text-yellow-700 dark:text-yellow-300 mb-3">
-                    Please transfer <strong>${{ number_format($order->total, 2) }}</strong> to our KBZ Pay number and upload the screenshot below.
+                    Please transfer <strong>${{ number_format($order->total, 2) }}</strong> using KBZ Pay and upload the screenshot.
                 </p>
                 
-                @if($order->payment_status !== 'awaiting_verification')
+                @if($order->payment_screenshot)
+                <div class="bg-yellow-100 dark:bg-yellow-900/40 p-3 rounded-lg">
+                    <p class="text-yellow-800 dark:text-yellow-200 text-sm">Your payment screenshot has been submitted and is waiting for verification. Please wait for staff to verify your payment.</p>
+                </div>
+                @else
                 <form action="{{ route('orders.upload-payment', $order->id) }}" method="POST" enctype="multipart/form-data" class="space-y-3">
                     @csrf
                     <div>
@@ -83,10 +127,6 @@
                     </div>
                     <button type="submit" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors">Upload Payment</button>
                 </form>
-                @else
-                <div class="bg-yellow-100 dark:bg-yellow-900/40 p-3 rounded-lg">
-                    <p class="text-yellow-800 dark:text-yellow-200 text-sm">Your payment screenshot has been submitted and is waiting for verification. Please wait for staff to verify your payment.</p>
-                </div>
                 @endif
             </div>
             @endif
@@ -94,8 +134,8 @@
             @if($order->payment_screenshot)
             <div class="mt-4">
                 <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Uploaded Screenshot:</p>
-                <a href="{{ asset('storage/' . $order->payment_screenshot) }}" target="_blank">
-                    <img src="{{ asset('storage/' . $order->payment_screenshot) }}" alt="Payment Screenshot" class="max-w-xs rounded-lg border dark:border-gray-600">
+                <a href="{{ route('orders.view-screenshot', $order->id) }}" target="_blank">
+                    <img src="{{ route('orders.view-screenshot', $order->id) }}" alt="Payment Screenshot" class="max-w-xs rounded-lg border dark:border-gray-600">
                 </a>
             </div>
             @endif
