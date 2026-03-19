@@ -17,7 +17,7 @@ class Role extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'slug', 'description', 'is_super_admin'];
+    protected $fillable = ['name', 'slug', 'description'];
 
     protected $casts = [
         'is_super_admin' => 'boolean',
@@ -35,7 +35,6 @@ class Role extends Model
 
     /**
      * Check if role is super admin
-     * @return bool
      */
     public function isSuperAdmin(): bool
     {

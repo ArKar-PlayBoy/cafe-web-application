@@ -44,7 +44,7 @@ class Category extends Model
 
     public function canBeSafelyDeleted(): bool
     {
-        return !$this->hasMenuItems();
+        return ! $this->hasMenuItems();
     }
 
     public function getMenuItemCount(): int

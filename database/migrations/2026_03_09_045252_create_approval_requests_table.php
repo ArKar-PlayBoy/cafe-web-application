@@ -25,7 +25,7 @@ return new class extends Migration
             $table->timestamp('expires_at')->nullable();
             $table->timestamp('approved_at')->nullable();
             $table->timestamps();
-            
+
             $table->index(['status', 'created_at']);
             $table->index(['requested_by', 'status']);
         });

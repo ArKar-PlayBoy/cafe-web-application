@@ -44,7 +44,7 @@ class UserSeeder extends Seeder
             'email' => 'bob@cafe.com',
             'password' => Hash::make('password'),
             'phone' => '09987654321',
-            'address' => 'Mandalay, Myanmar',
+            'address' => 'Yangon, Myanmar',
             'email_verified_at' => now(),
             'role_id' => $customerRole ? $customerRole->id : null,
         ]);

@@ -108,7 +108,7 @@ class AuditLogController extends Controller
 
         $logs = $query->latest()->get();
 
-        $filename = 'audit_logs_' . now()->format('Y-m-d_H-i-s') . '.csv';
+        $filename = 'audit_logs_'.now()->format('Y-m-d_H-i-s').'.csv';
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"$filename\"",

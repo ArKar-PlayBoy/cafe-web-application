@@ -25,7 +25,7 @@ return new class extends Migration
             $table->string('method', 10)->nullable();
             $table->boolean('is_critical')->default(false);
             $table->timestamps();
-            
+
             $table->index(['user_id', 'created_at']);
             $table->index(['action', 'created_at']);
             $table->index(['resource_type', 'resource_id']);

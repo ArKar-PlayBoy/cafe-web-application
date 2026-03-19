@@ -105,7 +105,7 @@ class PermissionService
                     [
                         'name' => $name,
                         'group' => $group,
-                        'description' => $data['label'] . ' - ' . $name,
+                        'description' => $data['label'].' - '.$name,
                         'is_critical' => in_array($slug, self::CRITICAL_PERMISSIONS),
                     ]
                 );
@@ -117,7 +117,7 @@ class PermissionService
     {
         $permissionIds = Permission::whereIn('slug', $permissionSlugs)->pluck('id');
         $role->permissions()->sync($permissionIds);
-        
+
         // Dispatch event to clear permission cache for all users with this role
         Event::dispatch(new RolePermissionsUpdated($role));
     }
@@ -141,7 +141,7 @@ class PermissionService
     public static function requiresApproval(string $action, ?string $resourceType = null, ?int $resourceId = null): bool
     {
         $criticalActions = ['categories.delete', 'menu.delete', 'users.delete'];
-        
+
         return in_array($action, $criticalActions);
     }
 
@@ -191,13 +191,15 @@ class PermissionService
         ];
 
         // Only super admins can delete categories
-        if (!$user->isSuperAdmin()) {
+        if (! $user->isSuperAdmin()) {
             $result['reason'] = 'Only Super Admins can delete categories.';
+
             return $result;
         }
 
-        if (!$user->hasPermission('categories.delete')) {
+        if (! $user->hasPermission('categories.delete')) {
             $result['reason'] = 'You do not have permission to delete categories.';
+
             return $result;
         }
 
@@ -205,10 +207,12 @@ class PermissionService
         if ($category->hasMenuItems()) {
             $result['requires_approval'] = true;
             $result['reason'] = "This category has {$category->getMenuItemCount()} menu items. Second admin approval required.";
+
             return $result;
         }
 
         $result['allowed'] = true;
+
         return $result;
     }
 
@@ -219,27 +223,32 @@ class PermissionService
             'reason' => '',
         ];
 
-        if (!$admin->hasPermission('users.ban')) {
+        if (! $admin->hasPermission('users.ban')) {
             $result['reason'] = 'You do not have permission to ban users.';
+
             return $result;
         }
 
         if ($target->isSuperAdmin()) {
             $result['reason'] = 'Super Admins cannot be banned.';
+
             return $result;
         }
 
-        if ($target->isAdmin() && !$admin->isSuperAdmin()) {
+        if ($target->isAdmin() && ! $admin->isSuperAdmin()) {
             $result['reason'] = 'Only Super Admins can ban other admins.';
+
             return $result;
         }
 
         if ($admin->id === $target->id) {
             $result['reason'] = 'You cannot ban yourself.';
+
             return $result;
         }
 
         $result['allowed'] = true;
+
         return $result;
     }
 
@@ -252,20 +261,24 @@ class PermissionService
 
         if ($target->isSuperAdmin()) {
             $result['reason'] = 'Super Admin accounts cannot be deleted.';
+
             return $result;
         }
 
         if ($admin->id === $target->id) {
             $result['reason'] = 'You cannot delete your own account.';
+
             return $result;
         }
 
-        if ($target->isAdmin() && !$admin->isSuperAdmin()) {
+        if ($target->isAdmin() && ! $admin->isSuperAdmin()) {
             $result['reason'] = 'Only Super Admins can delete other admin accounts.';
+
             return $result;
         }
 
         $result['allowed'] = true;
+
         return $result;
     }
 }

@@ -47,7 +47,6 @@ class OrderController extends Controller
         }
 
         $request->validate([
-            'screenshot' => 'required|file|mimes:jpg|max:2048',
             'reference' => 'nullable|string|max:255',
         ]);
 
@@ -104,7 +103,7 @@ class OrderController extends Controller
             abort(403);
         }
 
-        if (!$order->payment_screenshot) {
+        if (! $order->payment_screenshot) {
             abort(404);
         }
 
@@ -112,11 +111,11 @@ class OrderController extends Controller
         $filename = basename($order->payment_screenshot);
         $directory = dirname($order->payment_screenshot);
         // Only allow paths within the expected storage directory
-        $safePath = storage_path('app/public/' . $directory . '/' . $filename);
+        $safePath = storage_path('app/public/'.$directory.'/'.$filename);
         $realPath = realpath($safePath);
         $allowedBase = realpath(storage_path('app/public'));
 
-        if (!$realPath || !$allowedBase || !str_starts_with($realPath, $allowedBase)) {
+        if (! $realPath || ! $allowedBase || ! str_starts_with($realPath, $allowedBase)) {
             abort(404);
         }
 

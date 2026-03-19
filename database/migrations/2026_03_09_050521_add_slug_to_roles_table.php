@@ -13,19 +13,19 @@ return new class extends Migration
     public function up(): void
     {
         // Check if columns already exist before adding them
-        if (!Schema::hasColumn('roles', 'slug')) {
+        if (! Schema::hasColumn('roles', 'slug')) {
             Schema::table('roles', function (Blueprint $table) {
                 $table->string('slug')->nullable()->after('name');
             });
         }
 
-        if (!Schema::hasColumn('roles', 'description')) {
+        if (! Schema::hasColumn('roles', 'description')) {
             Schema::table('roles', function (Blueprint $table) {
                 $table->text('description')->nullable()->after('slug');
             });
         }
 
-        if (!Schema::hasColumn('roles', 'is_super_admin')) {
+        if (! Schema::hasColumn('roles', 'is_super_admin')) {
             Schema::table('roles', function (Blueprint $table) {
                 $table->boolean('is_super_admin')->default(false)->after('description');
             });
@@ -60,7 +60,7 @@ return new class extends Migration
                     if ($index > 0) {
                         DB::table('roles')
                             ->where('id', $role->id)
-                            ->update(['slug' => $role->slug . '-' . $index]);
+                            ->update(['slug' => $role->slug.'-'.$index]);
                     }
                 }
             }

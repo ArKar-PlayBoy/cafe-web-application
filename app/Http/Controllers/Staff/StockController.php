@@ -44,6 +44,7 @@ class StockController extends Controller
     public function wasteForm(StockItem $stock)
     {
         $this->authorize('stock.waste');
+
         return view('staff.stock.waste', compact('stock'));
     }
 
@@ -64,6 +65,7 @@ class StockController extends Controller
     public function adjustForm(StockItem $stock)
     {
         $this->authorize('stock.adjust');
+
         return view('staff.stock.adjust', compact('stock'));
     }
 

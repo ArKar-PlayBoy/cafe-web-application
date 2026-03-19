@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ApprovalRequestController;
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
+use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\MenuController as AdminMenuController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
@@ -22,10 +22,10 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\Staff\AuthController as StaffAuthController;
 use App\Http\Controllers\Staff\DashboardController as StaffDashboardController;
+use App\Http\Controllers\Staff\KitchenController;
 use App\Http\Controllers\Staff\OrderController as StaffOrderController;
 use App\Http\Controllers\Staff\ReservationController as StaffReservationController;
 use App\Http\Controllers\Staff\StockController as StaffStockController;
-use App\Http\Controllers\Staff\KitchenController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsStaff;
 use Illuminate\Support\Facades\Route;
@@ -46,12 +46,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/cart/remove/{cartItem}', [CartController::class, 'remove'])->name('cart.remove');
     Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout');
     Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
-    
+
     // Payment verification MUST be auth-protected (IDOR prevention)
     Route::get('/checkout/verify', [CheckoutController::class, 'verifyPayment'])->name('checkout.verify');
+    
+    // Stripe Payment Intents (for saved card functionality)
+    Route::post('/checkout/create-payment-intent', [CheckoutController::class, 'createPaymentIntent'])->name('checkout.create-payment-intent');
+    Route::post('/checkout/confirm-payment', [CheckoutController::class, 'confirmPayment'])->name('checkout.confirm-payment');
+    Route::get('/checkout/saved-cards', [CheckoutController::class, 'loadSavedCards'])->name('checkout.saved-cards');
     Route::get('/orders', [OrderController::class, 'index'])->name('orders');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
-    Route::post('/orders/{order}/upload-payment', [OrderController::class, 'uploadPayment'])->name('orders.upload-payment');
+    Route::post('/orders/{order}/upload-payment', [OrderController::class, 'uploadPayment'])
+        ->middleware('validate.payment.screenshot')
+        ->name('orders.upload-payment');
     Route::get('/orders/{order}/screenshot', [OrderController::class, 'viewScreenshot'])->name('orders.view-screenshot');
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
     Route::get('/reservations', [ReservationController::class, 'index'])->name('reservations.index');

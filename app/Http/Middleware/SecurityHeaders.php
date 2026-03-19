@@ -34,7 +34,7 @@ class SecurityHeaders
     private function getCspHeader(): string
     {
         $isLocal = app()->environment('local');
-        $cacheKey = 'csp_header_' . ($isLocal ? 'local' : 'production');
+        $cacheKey = 'csp_header_'.($isLocal ? 'local' : 'production');
 
         return Cache::remember($cacheKey, 3600, function () use ($isLocal) {
             return $this->buildCsp($isLocal);

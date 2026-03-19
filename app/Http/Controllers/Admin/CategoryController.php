@@ -121,7 +121,7 @@ class CategoryController extends Controller
                 'Category',
                 $category->id,
                 $category->toArray(),
-                'Delete category: ' . $category->name . ' (has ' . $category->menuItems()->count() . ' menu items)'
+                'Delete category: '.$category->name.' (has '.$category->menuItems()->count().' menu items)'
             );
 
             return back()->with('info', 'Delete request submitted. Waiting for superadmin approval.');

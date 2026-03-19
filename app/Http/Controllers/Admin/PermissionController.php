@@ -54,9 +54,9 @@ class PermissionController extends Controller
         ]);
 
         $permissions = $request->input('permissions', []);
-        
+
         // Filter out critical permissions for non-super-admin roles
-        if (!$role->is_super_admin) {
+        if (! $role->is_super_admin) {
             $criticalPermissions = PermissionService::CRITICAL_PERMISSIONS;
             $permissions = array_diff($permissions, $criticalPermissions);
         }
@@ -99,7 +99,7 @@ class PermissionController extends Controller
         ]);
 
         $permissions = $request->input('permissions', []);
-        
+
         // Filter out critical permissions
         $criticalPermissions = PermissionService::CRITICAL_PERMISSIONS;
         $permissions = array_diff($permissions, $criticalPermissions);

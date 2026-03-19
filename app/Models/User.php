@@ -7,7 +7,6 @@ use App\Events\UserRoleChanged;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Cache;
@@ -30,9 +29,6 @@ class User extends Authenticatable
         'password',
         'phone',
         'address',
-        'role_id',
-        'email_verified_at',
-        'stripe_customer_id',
     ];
 
     protected $hidden = [
@@ -57,7 +53,6 @@ class User extends Authenticatable
 
     /**
      * Check if user has admin role
-     * @return bool
      */
     public function isAdmin(): bool
     {
@@ -71,7 +66,6 @@ class User extends Authenticatable
 
     /**
      * Check if user has super admin role
-     * @return bool
      */
     public function isSuperAdmin(): bool
     {
@@ -98,16 +92,18 @@ class User extends Authenticatable
                 return true;
             }
         }
+
         return false;
     }
 
     public function hasAllPermissions(array $permissions): bool
     {
         foreach ($permissions as $permission) {
-            if (!$this->hasPermission($permission)) {
+            if (! $this->hasPermission($permission)) {
                 return false;
             }
         }
+
         return true;
     }
 
@@ -124,7 +120,7 @@ class User extends Authenticatable
         }
 
         // Only super admins can ban admins
-        if ($targetUser->isAdmin() && !$this->isSuperAdmin()) {
+        if ($targetUser->isAdmin() && ! $this->isSuperAdmin()) {
             return false;
         }
 
@@ -144,7 +140,7 @@ class User extends Authenticatable
         }
 
         // Only super admins can delete other admins
-        if ($targetUser->isAdmin() && !$this->isSuperAdmin()) {
+        if ($targetUser->isAdmin() && ! $this->isSuperAdmin()) {
             return false;
         }
 
@@ -200,47 +196,48 @@ class User extends Authenticatable
         $oldRoleId = $this->role_id;
         $this->role_id = $role->id;
         $this->save();
-        
+
         Event::dispatch(new UserRoleChanged($this, $oldRoleId));
     }
 
     public function syncDirectPermissions(array $permissionIds): void
     {
         $this->directPermissions()->sync($permissionIds);
-        
+
         Event::dispatch(new UserPermissionsChanged($this));
     }
 
     public function attachPermission(Permission $permission): void
     {
         $this->directPermissions()->attach($permission->id);
-        
+
         Event::dispatch(new UserPermissionsChanged($this));
     }
 
     public function detachPermission(Permission $permission): void
     {
         $this->directPermissions()->detach($permission->id);
-        
+
         Event::dispatch(new UserPermissionsChanged($this));
     }
 
     public function getAllPermissions(): array
     {
         $cacheKey = "user:{$this->id}:permissions";
+
         return Cache::remember($cacheKey, 300, function () {
             $permissions = collect();
 
             if ($this->role) {
                 // Ensure role permissions are loaded
-                if (!$this->role->relationLoaded('permissions')) {
+                if (! $this->role->relationLoaded('permissions')) {
                     $this->role->load('permissions');
                 }
                 $permissions = $permissions->merge($this->role->permissions->pluck('slug'));
             }
 
             // Ensure direct permissions are loaded
-            if (!$this->relationLoaded('directPermissions')) {
+            if (! $this->relationLoaded('directPermissions')) {
                 $this->load('directPermissions');
             }
             $permissions = $permissions->merge($this->directPermissions->pluck('slug'));
@@ -253,14 +250,14 @@ class User extends Authenticatable
     {
         $this->total_orders = ($this->total_orders ?? 0) + 1;
         $this->total_spent = ($this->total_spent ?? 0) + $orderTotal;
-        
+
         $today = now()->toDateString();
-        
-        if (!$this->first_order_date) {
+
+        if (! $this->first_order_date) {
             $this->first_order_date = $today;
         }
         $this->last_order_date = $today;
-        
+
         $this->save();
     }
 }

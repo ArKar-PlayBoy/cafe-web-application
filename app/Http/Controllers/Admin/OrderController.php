@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\OrderCreated;
 use App\Http\Controllers\Controller;
 use App\Models\KitchenTicket;
 use App\Models\Order;
@@ -48,6 +49,9 @@ class OrderController extends Controller
             'status' => 'new',
         ]);
 
+        // Dispatch order confirmation email - KBZ Pay payment now verified
+        event(new OrderCreated($order));
+
         return redirect()->route('admin.orders.view-screenshot', $order->id)
             ->with('success', 'Payment verified successfully.');
     }
@@ -87,13 +91,13 @@ class OrderController extends Controller
     {
         $this->authorize('orders.view');
 
-        if (!$order->payment_screenshot) {
+        if (! $order->payment_screenshot) {
             abort(404, 'No payment screenshot uploaded for this order.');
         }
 
-        $path = storage_path('app/public/' . $order->payment_screenshot);
+        $path = storage_path('app/public/'.$order->payment_screenshot);
 
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             abort(404, 'Payment screenshot file not found on server.');
         }
 
@@ -104,11 +108,11 @@ class OrderController extends Controller
     {
         $this->authorize('orders.update');
 
-        if (!$order->isCOD()) {
+        if (! $order->isCOD()) {
             return back()->with('error', 'Only COD orders can be marked as out for delivery.');
         }
 
-        if (!$order->canStartDelivery()) {
+        if (! $order->canStartDelivery()) {
             return back()->with('error', 'Order cannot be marked as out for delivery.');
         }
 
@@ -121,11 +125,11 @@ class OrderController extends Controller
     {
         $this->authorize('orders.verify_payment');
 
-        if (!$order->isCOD()) {
+        if (! $order->isCOD()) {
             return back()->with('error', 'Only COD orders can be marked as delivered.');
         }
 
-        if (!$order->canCollectCash()) {
+        if (! $order->canCollectCash()) {
             return back()->with('error', 'Order cannot be marked as delivered.');
         }
 
@@ -143,7 +147,7 @@ class OrderController extends Controller
             'reason' => 'required|string|max:500',
         ]);
 
-        if (!$order->isCOD()) {
+        if (! $order->isCOD()) {
             return back()->with('error', 'Only COD orders can be marked as failed.');
         }
 

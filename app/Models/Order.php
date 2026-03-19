@@ -21,14 +21,8 @@ class Order extends Model
         'payment_reference',
         'payment_screenshot',
         'payment_note',
-        'payment_verified_at',
-        'payment_verified_by',
-        'cancelled_by',
         'delivery_address',
         'delivery_phone',
-        'delivery_status',
-        'delivery_failed_reason',
-        'delivered_at',
     ];
 
     protected $casts = [
@@ -38,8 +32,11 @@ class Order extends Model
     ];
 
     public const DELIVERY_STATUS_PENDING = 'pending';
+
     public const DELIVERY_STATUS_OUT_FOR_DELIVERY = 'out_for_delivery';
+
     public const DELIVERY_STATUS_DELIVERED = 'delivered';
+
     public const DELIVERY_STATUS_FAILED = 'failed';
 
     public function user(): BelongsTo
@@ -79,16 +76,16 @@ class Order extends Model
 
     public function canStartDelivery(): bool
     {
-        return $this->isCOD() 
-            && $this->status === 'ready' 
+        return $this->isCOD()
+            && $this->status === 'ready'
             && $this->delivery_status === self::DELIVERY_STATUS_PENDING;
     }
 
     public function canCollectCash(): bool
     {
-        return $this->isCOD() 
+        return $this->isCOD()
             && $this->delivery_status === self::DELIVERY_STATUS_OUT_FOR_DELIVERY
-            && !in_array($this->payment_status, ['verified', 'paid']);
+            && ! in_array($this->payment_status, ['verified', 'paid']);
     }
 
     public function markAsOutForDelivery(): bool
@@ -103,7 +100,7 @@ class Order extends Model
         return $this->update([
             'delivery_status' => self::DELIVERY_STATUS_DELIVERED,
             'payment_status' => 'verified',
-            'payment_reference' => 'COD-' . $this->id . '-COLLECTED-' . time(),
+            'payment_reference' => 'COD-'.$this->id.'-COLLECTED-'.time(),
             'payment_verified_at' => now(),
             'delivered_at' => now(),
         ]);

@@ -12,8 +12,8 @@ class ReservationController extends Controller
     public function index()
     {
         $user = Auth::guard('staff')->user();
-        
-        if (!$user->hasPermission('reservations.view')) {
+
+        if (! $user->hasPermission('reservations.view')) {
             abort(403, 'You do not have permission to view reservations.');
         }
 
@@ -25,8 +25,8 @@ class ReservationController extends Controller
     public function updateStatus(Request $request, Reservation $reservation)
     {
         $user = Auth::guard('staff')->user();
-        
-        if (!$user->hasPermission('reservations.manage')) {
+
+        if (! $user->hasPermission('reservations.manage')) {
             abort(403, 'You do not have permission to manage reservations.');
         }
 
@@ -54,8 +54,8 @@ class ReservationController extends Controller
     public function confirm(Reservation $reservation)
     {
         $user = Auth::guard('staff')->user();
-        
-        if (!$user->hasPermission('reservations.manage')) {
+
+        if (! $user->hasPermission('reservations.manage')) {
             abort(403, 'You do not have permission to manage reservations.');
         }
 
@@ -71,8 +71,8 @@ class ReservationController extends Controller
     public function reject(Request $request, Reservation $reservation)
     {
         $user = Auth::guard('staff')->user();
-        
-        if (!$user->hasPermission('reservations.manage')) {
+
+        if (! $user->hasPermission('reservations.manage')) {
             abort(403, 'You do not have permission to manage reservations.');
         }
 

@@ -17,11 +17,11 @@ trait Auditable
         static::updated(function (Model $model) {
             $changes = $model->getChanges();
             $original = [];
-            
+
             foreach ($changes as $key => $value) {
                 $original[$key] = $model->getOriginal($key);
             }
-            
+
             $model->logActivity('updated', $original, $changes);
         });
 
@@ -37,10 +37,10 @@ trait Auditable
     protected function logActivity(string $action, ?array $oldValues, ?array $newValues): void
     {
         $isCritical = in_array($action, ['deleted']) || $this->isCriticalAction($action);
-        
+
         AuditLog::create([
             'user_id' => auth()->check() ? auth()->id() : null,
-            'action' => $this->getTable() . '.' . $action,
+            'action' => $this->getTable().'.'.$action,
             'resource_type' => class_basename($this),
             'resource_id' => $this->getKey(),
             'old_values' => $this->filterSensitiveData($oldValues),
@@ -60,7 +60,7 @@ trait Auditable
         }
 
         $sensitiveFields = ['password', 'remember_token', 'stripe_customer_id'];
-        
+
         return array_diff_key($data, array_flip($sensitiveFields));
     }
 

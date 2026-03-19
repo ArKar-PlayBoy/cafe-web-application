@@ -7,7 +7,6 @@ use App\Models\ApprovalRequest;
 use App\Models\AuditLog;
 use App\Models\Category;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 
 class ApprovalRequestController extends Controller
 {
@@ -65,7 +64,7 @@ class ApprovalRequestController extends Controller
     public function show(ApprovalRequest $approvalRequest)
     {
         // Allow viewing if user is super admin or is the requester
-        if (!auth('admin')->user()->isSuperAdmin() && $approvalRequest->requested_by !== auth('admin')->id()) {
+        if (! auth('admin')->user()->isSuperAdmin() && $approvalRequest->requested_by !== auth('admin')->id()) {
             abort(403, 'Unauthorized.');
         }
 
@@ -78,7 +77,7 @@ class ApprovalRequestController extends Controller
     {
         $this->authorize('system.approve_critical');
 
-        if (!$approvalRequest->isPending()) {
+        if (! $approvalRequest->isPending()) {
             return back()->with('error', 'This request has already been processed.');
         }
 
@@ -116,7 +115,7 @@ class ApprovalRequestController extends Controller
     {
         $this->authorize('system.approve_critical');
 
-        if (!$approvalRequest->isPending()) {
+        if (! $approvalRequest->isPending()) {
             return back()->with('error', 'This request has already been processed.');
         }
 
@@ -159,7 +158,7 @@ class ApprovalRequestController extends Controller
             return back()->with('error', 'You can only cancel your own requests.');
         }
 
-        if (!$approvalRequest->isPending()) {
+        if (! $approvalRequest->isPending()) {
             return back()->with('error', 'This request has already been processed.');
         }
 

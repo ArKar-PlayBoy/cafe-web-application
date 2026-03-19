@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\OrderCreated;
 use App\Models\Cart;
 use App\Models\KitchenTicket;
 use App\Models\Order;
@@ -47,17 +48,16 @@ class PaymentService
                 'order_id' => (string) $order->id,
                 'user_id' => (string) $order->user_id,
             ],
-            'customer_email' => $order->user->email ?? null,
         ];
 
-        // Only save card when user explicitly checks the checkbox
+        // If saving card, use customer parameter directly (for Checkout Sessions)
+        // Cards are automatically saved to the customer after successful payment
+        // Note: setup_future_usage is NOT valid for Checkout Sessions, only for Payment Intents
         if ($saveCard && $customerId) {
-            $sessionParams['payment_intent_data'] = [
-                'customer' => $customerId,
-                'setup_future_usage' => 'on_session',
-            ];
+            $sessionParams['customer'] = $customerId;
+        } else {
+            $sessionParams['customer_email'] = $order->user->email ?? null;
         }
-        // If no saveCard, no customer attached - just normal payment
 
         try {
             $session = StripeSession::create($sessionParams);
@@ -72,20 +72,20 @@ class PaymentService
                 'order_id' => $order->id,
                 'stripe_code' => $e->getStripeCode(),
                 'save_card' => $saveCard,
-                'has_customer' => !empty($customerId),
+                'has_customer' => ! empty($customerId),
             ]);
-            
+
             return [
-                'error' => 'Failed to create payment session: ' . $e->getMessage(),
+                'error' => 'Failed to create payment session: '.$e->getMessage(),
             ];
         } catch (\Exception $e) {
             Log::error('Stripe session creation failed (general)', [
                 'error' => $e->getMessage(),
                 'order_id' => $order->id,
             ]);
-            
+
             return [
-                'error' => 'Failed to create payment session: ' . $e->getMessage(),
+                'error' => 'Failed to create payment session: '.$e->getMessage(),
             ];
         }
     }
@@ -126,7 +126,13 @@ class PaymentService
                 throw new \Exception('Cart is empty');
             }
 
-            return $this->createCheckoutSession($cartItems->toArray(), $order, $saveCard, $customerId);
+            // If saving card, use Payment Intents (cards are saved properly)
+            // Otherwise, use Checkout Sessions
+            if ($saveCard) {
+                return $this->createPaymentIntent($cartItems->toArray(), $order, $customerId);
+            }
+
+            return $this->createCheckoutSession($cartItems->toArray(), $order, false, null);
         }
 
         // For other payment methods (COD, etc.)
@@ -134,6 +140,77 @@ class PaymentService
             'status' => 'pending',
             'amount' => $order->total,
         ];
+    }
+
+    /**
+     * Create a PaymentIntent for card-based payment with saved cards support
+     * Payment Intents properly save cards to the customer when using setup_future_usage
+     */
+    public function createPaymentIntent(array $items, Order $order, ?string $customerId = null): array
+    {
+        try {
+            // Get or create customer if saving card
+            if ($customerId) {
+                try {
+                    $customer = Customer::retrieve($customerId);
+                } catch (\Exception $e) {
+                    // Customer doesn't exist, create new one
+                    $customer = Customer::create([
+                        'email' => $order->user->email,
+                        'name' => $order->user->name,
+                    ]);
+                    $customerId = $customer->id;
+                    $order->user->update(['stripe_customer_id' => $customerId]);
+                }
+            }
+
+            // Calculate amount in cents
+            $amount = (int) ($order->total * 100);
+
+            // Create PaymentIntent with setup_future_usage to save the card
+            $params = [
+                'amount' => $amount,
+                'currency' => strtolower($this->currency),
+                'automatic_payment_methods' => [
+                    'enabled' => true,
+                ],
+                'metadata' => [
+                    'order_id' => (string) $order->id,
+                    'user_id' => (string) $order->user_id,
+                ],
+            ];
+
+            // If customer exists and we want to save card, attach customer and set setup_future_usage
+            if ($customerId) {
+                $params['customer'] = $customerId;
+                $params['setup_future_usage'] = 'on_session';
+            }
+
+            $paymentIntent = PaymentIntent::create($params);
+
+            Log::info('PaymentIntent created', [
+                'order_id' => $order->id,
+                'payment_intent_id' => $paymentIntent->id,
+                'client_secret' => substr($paymentIntent->client_secret, 0, 20) . '...',
+                'has_customer' => ! empty($customerId),
+            ]);
+
+            return [
+                'client_secret' => $paymentIntent->client_secret,
+                'payment_intent_id' => $paymentIntent->id,
+                'amount' => $order->total,
+            ];
+        } catch (ApiErrorException $e) {
+            Log::error('PaymentIntent creation failed', [
+                'error' => $e->getMessage(),
+                'order_id' => $order->id,
+                'stripe_code' => $e->getStripeCode(),
+            ]);
+
+            return [
+                'error' => 'Failed to create payment: ' . $e->getMessage(),
+            ];
+        }
     }
 
     /**
@@ -202,25 +279,24 @@ class PaymentService
             return ['status' => 'order_not_found'];
         }
 
-        // Only update if not already processed (idempotency)
-        if (in_array($order->payment_status, ['paid', 'verified'])) {
-            return ['status' => 'already_processed', 'order_id' => $orderId];
-        }
-
+        // Set payment_status to 'verified' for consistency with KBZ Pay manual verification
         $order->update([
-            'payment_status' => 'paid',
+            'payment_status' => 'verified',
             'payment_reference' => $session['payment_intent'] ?? null,
             'status' => 'confirmed',
         ]);
 
-        // Create kitchen ticket after payment confirmed
-        KitchenTicket::create([
-            'order_id' => $order->id,
-            'status' => 'new',
-        ]);
+        // Create kitchen ticket only if not already exists (idempotency to prevent duplicates)
+        KitchenTicket::firstOrCreate(
+            ['order_id' => $order->id],
+            ['status' => 'new']
+        );
 
         // Clear cart after successful payment
         Cart::where('user_id', $order->user_id)->delete();
+
+        // Send confirmation email after Stripe payment is verified
+        event(new OrderCreated($order));
 
         Log::info('Payment completed for order: '.$orderId);
 
@@ -228,13 +304,46 @@ class PaymentService
     }
 
     /**
-     * Handle payment succeeded
+     * Handle payment succeeded (webhook - PaymentIntent)
      */
     private function handlePaymentSucceeded(array $paymentIntent): array
     {
-        Log::info('Payment succeeded', ['payment_intent' => $paymentIntent['id']]);
+        $orderId = $paymentIntent['metadata']['order_id'] ?? null;
 
-        return ['status' => 'success'];
+        if (! $orderId) {
+            return ['status' => 'no_order_found'];
+        }
+
+        $order = Order::find($orderId);
+
+        if (! $order) {
+            return ['status' => 'order_not_found'];
+        }
+
+        // Set payment_status to 'verified' for consistency with KBZ Pay manual verification
+        $order->update([
+            'payment_status' => 'verified',
+            'payment_reference' => $paymentIntent['id'],
+            'status' => 'confirmed',
+        ]);
+
+        // Create kitchen ticket only if not already exists (idempotency to prevent duplicates)
+        KitchenTicket::firstOrCreate(
+            ['order_id' => $order->id],
+            ['status' => 'new']
+        );
+
+        // Clear cart after successful payment
+        Cart::where('user_id', $order->user_id)->delete();
+
+        // Send confirmation email
+        event(new OrderCreated($order));
+
+        Log::info('Payment succeeded for order: '.$orderId, [
+            'payment_intent' => $paymentIntent['id'],
+        ]);
+
+        return ['status' => 'success', 'order_id' => $orderId];
     }
 
     /**
@@ -299,10 +408,28 @@ class PaymentService
     {
         if ($user->stripe_customer_id) {
             try {
-                Customer::retrieve($user->stripe_customer_id);
-                return $user->stripe_customer_id;
+                $customer = Customer::retrieve($user->stripe_customer_id);
+                
+                // Verify customer exists and email matches
+                if ($customer && $customer->email === $user->email) {
+                    Log::info('getOrCreateCustomer: Using existing customer', [
+                        'user_id' => $user->id,
+                        'customer_id' => $user->stripe_customer_id,
+                    ]);
+                    return $user->stripe_customer_id;
+                }
+                
+                Log::warning('getOrCreateCustomer: Customer mismatch, creating new', [
+                    'user_id' => $user->id,
+                    'existing_customer_email' => $customer->email ?? 'unknown',
+                    'user_email' => $user->email,
+                ]);
             } catch (\Exception $e) {
-                Log::warning('Stripe customer retrieval failed, creating new one: ' . $e->getMessage());
+                Log::warning('getOrCreateCustomer: Customer retrieval failed', [
+                    'user_id' => $user->id,
+                    'customer_id' => $user->stripe_customer_id,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 
@@ -316,11 +443,16 @@ class PaymentService
             ]);
 
             $user->update(['stripe_customer_id' => $customer->id]);
+            
+            Log::info('getOrCreateCustomer: Created new customer', [
+                'user_id' => $user->id,
+                'customer_id' => $customer->id,
+            ]);
 
             return $customer->id;
         } catch (ApiErrorException $e) {
-            Log::error('Failed to create Stripe customer: ' . $e->getMessage());
-            throw new \Exception('Failed to create payment customer: ' . $e->getMessage());
+            Log::error('Failed to create Stripe customer: '.$e->getMessage());
+            throw new \Exception('Failed to create payment customer: '.$e->getMessage());
         }
     }
 
@@ -330,10 +462,29 @@ class PaymentService
     public function listSavedCards(string $customerId): array
     {
         try {
+            Log::info('listSavedCards: Fetching cards for customer', ['customer_id' => $customerId]);
+            
             $paymentMethods = PaymentMethod::all([
                 'customer' => $customerId,
                 'type' => 'card',
             ]);
+
+            Log::info('listSavedCards: Stripe response', [
+                'customer_id' => $customerId,
+                'cards_count' => count($paymentMethods->data),
+                'cards' => array_map(function ($pm) {
+                    return [
+                        'id' => $pm->id,
+                        'brand' => $pm->card->brand ?? 'unknown',
+                        'last4' => $pm->card->last4 ?? '****',
+                    ];
+                }, $paymentMethods->data)
+            ]);
+
+            if (empty($paymentMethods->data)) {
+                Log::info('listSavedCards: No cards found for customer', ['customer_id' => $customerId]);
+                return [];
+            }
 
             return array_map(function ($pm) {
                 return [
@@ -345,7 +496,11 @@ class PaymentService
                 ];
             }, $paymentMethods->data);
         } catch (ApiErrorException $e) {
-            Log::error('Failed to list saved cards: ' . $e->getMessage());
+            Log::error('Failed to list saved cards: '.$e->getMessage(), [
+                'customer_id' => $customerId,
+                'error' => $e->getMessage(),
+            ]);
+
             return [];
         }
     }
@@ -370,7 +525,7 @@ class PaymentService
                     'order_id' => (string) $order->id,
                     'user_id' => (string) $order->user_id,
                 ],
-                'return_url' => url('/checkout/verify') . '?payment_intent=' . '{PAYMENT_INTENT_ID}&order_id=' . $order->id,
+                'return_url' => url('/checkout/verify').'?payment_intent='.'{PAYMENT_INTENT_ID}&order_id='.$order->id,
             ]);
 
             if ($paymentIntent->status === 'succeeded') {
@@ -393,8 +548,8 @@ class PaymentService
                 'payment_intent' => $paymentIntent->id,
             ];
         } catch (ApiErrorException $e) {
-            Log::error('PaymentIntent creation failed: ' . $e->getMessage());
-            throw new \Exception('Payment failed: ' . $e->getMessage());
+            Log::error('PaymentIntent creation failed: '.$e->getMessage());
+            throw new \Exception('Payment failed: '.$e->getMessage());
         }
     }
 
@@ -406,9 +561,11 @@ class PaymentService
         try {
             $paymentMethod = PaymentMethod::retrieve($paymentMethodId);
             $paymentMethod->detach();
+
             return true;
         } catch (ApiErrorException $e) {
-            Log::error('Failed to delete payment method: ' . $e->getMessage());
+            Log::error('Failed to delete payment method: '.$e->getMessage());
+
             return false;
         }
     }

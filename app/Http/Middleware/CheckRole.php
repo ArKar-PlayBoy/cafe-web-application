@@ -17,14 +17,14 @@ class CheckRole
     {
         $user = auth('admin')->user();
 
-        if (!$user) {
+        if (! $user) {
             return redirect()->route('admin.login')
                 ->with('error', 'Please login to access this area.');
         }
 
         $userRole = $user->role;
 
-        if (!$userRole) {
+        if (! $userRole) {
             abort(403, 'User does not have a role assigned.');
         }
 
@@ -34,7 +34,7 @@ class CheckRole
         }
 
         // Check if user's role is in the allowed roles
-        if (!in_array($userRole->slug, $roles)) {
+        if (! in_array($userRole->slug, $roles)) {
             abort(403, 'You do not have the required role to access this area.');
         }
 

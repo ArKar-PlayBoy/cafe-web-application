@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Staff;
 
+use App\Events\OrderCreated;
 use App\Events\OrderStatusChanged;
 use App\Http\Controllers\Controller;
 use App\Models\KitchenTicket;
@@ -19,14 +20,16 @@ class OrderController extends Controller
         // 2. Have verified/paid payment
         // 3. Have a payment screenshot uploaded (awaiting verification)
         // 4. Are KBZ Pay orders waiting for payment (payment_status = awaiting_verification)
+        // 5. Are Stripe orders (auto-verified payment)
         $orders = Order::with('user', 'items.menuItem', 'rejection')
             ->where(function ($query) {
                 $query->where('payment_method', 'cod')
+                    ->orWhere('payment_method', 'stripe')
                     ->orWhereIn('payment_status', ['verified', 'paid'])
                     ->orWhereNotNull('payment_screenshot')
                     ->orWhere(function ($q) {
                         $q->where('payment_method', 'kbz_pay')
-                          ->where('payment_status', 'awaiting_verification');
+                            ->where('payment_status', 'awaiting_verification');
                     });
             })
             ->latest()
@@ -39,24 +42,30 @@ class OrderController extends Controller
     {
         $this->authorize('orders.manage');
         $request->validate([
-            'status' => 'required|in:pending,preparing,ready,completed,cancelled',
+            'status' => 'required|in:pending,preparing,ready,completed,cancelled,confirmed',
         ]);
-        
+
         $previousStatus = $order->status;
-        
+
         $order->update(['status' => $request->status]);
-        
-        // Dispatch status change event for email notification
-        event(new OrderStatusChanged($order, $previousStatus, $request->status));
-        
+
+        // For COD orders, send confirmation email when status changes to 'preparing'
+        // This is when the order is officially confirmed and kitchen starts preparing
+        if ($order->payment_method === 'cod' && $request->status === 'preparing') {
+            event(new OrderCreated($order));
+        } else {
+            // Dispatch status change event for other status updates
+            event(new OrderStatusChanged($order, $previousStatus, $request->status));
+        }
+
         if ($request->status === 'completed' && $previousStatus !== 'completed') {
             StockService::deductStock($order);
-            
+
             if ($order->user && in_array($order->payment_status, ['verified', 'paid'])) {
                 $order->user->updateOrderStats($order->total);
             }
         }
-        
+
         return back()->with('success', 'Order status updated successfully.');
     }
 
@@ -88,50 +97,53 @@ class OrderController extends Controller
     public function verifyPayment(Order $order)
     {
         $this->authorize('orders.verify_payment');
-        
+
         // Fix: Check for 'pending' or 'awaiting_verification' status
         if (! $order->payment_screenshot || in_array($order->payment_status, ['verified', 'paid'])) {
             return back()->with('error', 'No payment screenshot to verify or already verified.');
         }
-        
+
         $previousStatus = $order->payment_status;
-        
+
         $order->update([
             'payment_status' => 'verified',
             'payment_verified_at' => now(),
             'payment_verified_by' => auth('staff')->id(),
             'status' => 'preparing',
         ]);
-        
+
         \Illuminate\Support\Facades\Log::info('Payment verified by staff', [
             'order_id' => $order->id,
             'previous_status' => $previousStatus,
             'new_status' => 'verified',
             'staff_id' => auth('staff')->id(),
         ]);
-        
+
         // Create kitchen ticket after payment verified
         KitchenTicket::create([
             'order_id' => $order->id,
             'status' => 'new',
         ]);
-        
+
+        // Dispatch order confirmation email - KBZ Pay payment now verified
+        event(new OrderCreated($order));
+
         return redirect()->route('staff.orders.view-screenshot', $order->id)
             ->with('success', 'Payment verified successfully.');
     }
-    
+
     public function rejectPayment(Request $request, Order $order)
     {
         $this->authorize('orders.verify_payment');
         $request->validate([
             'note' => 'required|string|max:1000',
         ]);
-        
+
         // Fix: Check for statuses that can be rejected
         if (! $order->payment_screenshot || in_array($order->payment_status, ['verified', 'paid', 'failed'])) {
             return back()->with('error', 'No payment screenshot to reject or already processed.');
         }
-        
+
         $order->update([
             'payment_status' => 'failed',
             'payment_note' => $request->note,
@@ -139,25 +151,28 @@ class OrderController extends Controller
             'payment_verified_by' => auth('staff')->id(),
             'status' => 'cancelled',
         ]);
-        
+
         return redirect()->route('staff.orders.view-screenshot', $order->id)
             ->with('error', 'Payment rejected.');
     }
 
     public function viewScreenshot(Order $order)
     {
+        $this->authorize('orders.manage');
         return view('staff.orders.screenshot', compact('order'));
     }
 
     public function viewScreenshotRaw(Order $order)
     {
-        if (!$order->payment_screenshot) {
+        $this->authorize('orders.manage');
+        
+        if (! $order->payment_screenshot) {
             abort(404);
         }
 
-        $path = storage_path('app/public/' . $order->payment_screenshot);
+        $path = storage_path('app/public/'.$order->payment_screenshot);
 
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             abort(404);
         }
 
@@ -169,11 +184,11 @@ class OrderController extends Controller
         $this->authorize('orders.manage');
 
         // Security: Ensure order is COD and can start delivery
-        if (!$order->isCOD()) {
+        if (! $order->isCOD()) {
             return back()->with('error', 'Only COD orders can be marked as out for delivery.');
         }
 
-        if (!$order->canStartDelivery()) {
+        if (! $order->canStartDelivery()) {
             return back()->with('error', 'Order cannot be marked as out for delivery. It must be ready first.');
         }
 
@@ -187,11 +202,11 @@ class OrderController extends Controller
         $this->authorize('orders.manage');
 
         // Security: Ensure order is COD and can collect cash
-        if (!$order->isCOD()) {
+        if (! $order->isCOD()) {
             return back()->with('error', 'Only COD orders can be marked as delivered.');
         }
 
-        if (!$order->canCollectCash()) {
+        if (! $order->canCollectCash()) {
             return back()->with('error', 'Order cannot be marked as delivered. It must be out for delivery first.');
         }
 
@@ -213,7 +228,7 @@ class OrderController extends Controller
         ]);
 
         // Security: Ensure order is COD
-        if (!$order->isCOD()) {
+        if (! $order->isCOD()) {
             return back()->with('error', 'Only COD orders can be marked as failed.');
         }
 

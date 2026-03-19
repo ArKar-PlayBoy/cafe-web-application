@@ -16,8 +16,8 @@ use App\Models\Category;
 use App\Models\MenuItem;
 use App\Models\User;
 use App\Services\PermissionService;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -75,9 +75,10 @@ class AppServiceProvider extends ServiceProvider
         foreach (PermissionService::PERMISSION_GROUPS as $group => $data) {
             foreach ($data['permissions'] as $slug => $name) {
                 Gate::define($slug, function ($user) use ($slug) {
-                    if (!$user) {
+                    if (! $user) {
                         return false;
                     }
+
                     return $user->hasPermission($slug);
                 });
             }
@@ -98,11 +99,11 @@ class AppServiceProvider extends ServiceProvider
 
         // Delete Category Gate
         Gate::define('delete-category', function (User $user, Category $category) {
-            if (!$user->isSuperAdmin()) {
+            if (! $user->isSuperAdmin()) {
                 return false;
             }
 
-            if (!$user->hasPermission('categories.delete')) {
+            if (! $user->hasPermission('categories.delete')) {
                 return false;
             }
 
@@ -111,7 +112,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Delete Menu Item Gate
         Gate::define('delete-menu-item', function (User $user, MenuItem $menuItem) {
-            if (!$user->hasPermission('menu.delete')) {
+            if (! $user->hasPermission('menu.delete')) {
                 return false;
             }
 
@@ -126,12 +127,14 @@ class AppServiceProvider extends ServiceProvider
         // Ban User Gate
         Gate::define('ban-user', function (User $admin, User $target) {
             $result = PermissionService::canBanUser($admin, $target);
+
             return $result['allowed'];
         });
 
         // Delete User Gate
         Gate::define('delete-user', function (User $admin, User $target) {
             $result = PermissionService::canDeleteUser($admin, $target);
+
             return $result['allowed'];
         });
 

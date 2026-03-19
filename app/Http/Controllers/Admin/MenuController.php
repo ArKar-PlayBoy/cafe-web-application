@@ -118,10 +118,11 @@ class MenuController extends Controller
         // Use Gate for complex permission checking
         $canDelete = Gate::allows('delete-menu-item', $menu);
 
-        if (!$canDelete) {
+        if (! $canDelete) {
             if ($menu->hasActiveOrders()) {
                 return back()->with('error', 'Cannot delete menu item with active orders. Please complete or cancel all orders first.');
             }
+
             return back()->with('error', 'You do not have permission to delete this menu item.');
         }
 

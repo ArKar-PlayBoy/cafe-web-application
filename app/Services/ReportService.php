@@ -60,16 +60,17 @@ class ReportService
                 ->whereIn('payment_status', ['verified', 'paid'])
                 ->where('status', '!=', 'cancelled');
         })
-        ->select('menu_item_id', DB::raw('SUM(quantity) as total_quantity'), DB::raw('COUNT(DISTINCT order_id) as order_count'))
-        ->with('menuItem:id,name,price')
-        ->groupBy('menu_item_id')
-        ->orderByDesc('total_quantity')
-        ->limit($limit)
-        ->get()
-        ->map(function ($item) {
-            $item->revenue = $item->total_quantity * ($item->menuItem->price ?? 0);
-            return $item;
-        });
+            ->select('menu_item_id', DB::raw('SUM(quantity) as total_quantity'), DB::raw('COUNT(DISTINCT order_id) as order_count'))
+            ->with('menuItem:id,name,price')
+            ->groupBy('menu_item_id')
+            ->orderByDesc('total_quantity')
+            ->limit($limit)
+            ->get()
+            ->map(function ($item) {
+                $item->revenue = $item->total_quantity * ($item->menuItem->price ?? 0);
+
+                return $item;
+            });
     }
 
     public function getCustomerAnalytics(?Carbon $startDate = null, ?Carbon $endDate = null): array
@@ -92,10 +93,10 @@ class ReportService
                 ->whereIn('payment_status', ['verified', 'paid'])
                 ->where('status', '!=', 'cancelled');
         })
-        ->select('id', 'name', 'email', 'total_orders', 'total_spent')
-        ->orderByDesc('total_spent')
-        ->limit(10)
-        ->get();
+            ->select('id', 'name', 'email', 'total_orders', 'total_spent')
+            ->orderByDesc('total_spent')
+            ->limit(10)
+            ->get();
 
         $customerRetention = $this->calculateRetentionRate($startDate, $endDate);
 
@@ -126,8 +127,8 @@ class ReportService
                 ->whereIn('payment_status', ['verified', 'paid'])
                 ->where('status', '!=', 'cancelled');
         })
-        ->whereIn('id', $previousCustomers)
-        ->count();
+            ->whereIn('id', $previousCustomers)
+            ->count();
 
         $previousCount = $previousCustomers->count();
 

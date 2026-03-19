@@ -79,6 +79,10 @@ use Illuminate\Support\Str;
                         @elseif($order->payment_note)
                         <div class="text-xs text-red-600 dark:text-red-400 mt-1">{{ $order->payment_note }}</div>
                         @endif
+                    @elseif($order->status === 'confirmed')
+                        <span class="px-2 py-1 text-xs rounded bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                            Confirmed
+                        </span>
                     @elseif($order->status === 'preparing')
                         <span class="px-2 py-1 text-xs rounded bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                             Preparing
@@ -122,8 +126,28 @@ use Illuminate\Support\Str;
                             </form>
                         </dialog>
                     </div>
+                    {{-- Action buttons for confirmed/preparing orders --}}
+                    @elseif(in_array($order->status, ['confirmed', 'preparing']))
+                    <div class="flex flex-col gap-2">
+                        <form action="{{ route('staff.orders.status', $order->id) }}" method="POST">
+                            @csrf
+                            @method('PUT')
+                            <input type="hidden" name="status" value="ready">
+                            <button type="submit" class="bg-cyan-600 text-white px-3 py-1 rounded text-xs hover:bg-cyan-700 w-full">
+                                {{ $order->status === 'confirmed' ? 'Start Preparing' : 'Mark Ready' }}
+                            </button>
+                        </form>
+                        @if($order->status === 'preparing')
+                        <form action="{{ route('staff.orders.status', $order->id) }}" method="POST">
+                            @csrf
+                            @method('PUT')
+                            <input type="hidden" name="status" value="pending">
+                            <button type="submit" class="bg-yellow-600 text-white px-3 py-1 rounded text-xs hover:bg-yellow-700 w-full">Back to Pending</button>
+                        </form>
+                        @endif
+                    </div>
                     @else
-                    <span class="text-gray-400 dark:text-gray-500 text-sm">View only - Kitchen manages status</span>
+                    <span class="text-gray-400 dark:text-gray-500 text-sm">View only</span>
                     @endif
                 </td>
             </tr>

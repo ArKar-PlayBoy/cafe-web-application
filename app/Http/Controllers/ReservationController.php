@@ -133,13 +133,13 @@ class ReservationController extends Controller
         ]);
 
         $tableId = $request->table_id;
-        
-        if (!$tableId && $request->table_number) {
+
+        if (! $tableId && $request->table_number) {
             $table = CafeTable::where('table_number', $request->table_number)->first();
             $tableId = $table?->id;
         }
 
-        if (!$tableId) {
+        if (! $tableId) {
             return response()->json([
                 'available' => false,
                 'message' => 'Please select a table',
@@ -147,7 +147,7 @@ class ReservationController extends Controller
         }
 
         $table = CafeTable::find($tableId);
-        
+
         if ($table->status !== 'available') {
             return response()->json([
                 'available' => false,
@@ -158,12 +158,12 @@ class ReservationController extends Controller
         if ($table->capacity < $request->party_size) {
             return response()->json([
                 'available' => false,
-                'message' => 'Table capacity is too small for ' . $request->party_size . ' persons',
+                'message' => 'Table capacity is too small for '.$request->party_size.' persons',
             ]);
         }
 
         $reservationDateTime = \Carbon\Carbon::parse(
-            $request->reservation_date . ' ' . $request->reservation_time
+            $request->reservation_date.' '.$request->reservation_time
         );
 
         $windowStart = $reservationDateTime->copy()->subHours(2);

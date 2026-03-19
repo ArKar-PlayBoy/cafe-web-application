@@ -21,7 +21,7 @@
                 <p class="text-gray-500 dark:text-gray-400">{{ $order->created_at->format('M d, Y H:i') }}</p>
             </div>
             <div class="text-right">
-                <span class="px-3 py-1 text-sm rounded-full {{ $order->status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : ($order->status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : ($order->status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400')) }}">
+                <span class="px-3 py-1 text-sm rounded-full {{ $order->status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : ($order->status === 'completed' || $order->status === 'confirmed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : ($order->status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400')) }}">
                     {{ ucfirst($order->status) }}
                 </span>
                 @if($order->status === 'cancelled' && $order->rejection)
@@ -102,7 +102,7 @@
                 <p class="text-sm text-red-600 dark:text-red-400 mt-1">Reason: {{ $order->payment_note }}</p>
             @endif
             
-            @if($order->payment_method !== 'cod' && !in_array($order->payment_status, ['verified', 'paid']))
+            @if($order->payment_method === 'kbz_pay' && !in_array($order->payment_status, ['verified', 'paid']))
             <div class="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                 <h3 class="font-medium text-yellow-800 dark:text-yellow-200 mb-2">Payment Instructions</h3>
                 <p class="text-sm text-yellow-700 dark:text-yellow-300 mb-3">

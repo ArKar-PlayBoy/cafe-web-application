@@ -22,7 +22,7 @@ class ReportController extends Controller
 
         $dateRange = $request->get('date_range', 'last_30_days');
         $dateOptions = $this->reportService->getDateRangeOptions();
-        
+
         if ($dateRange === 'custom') {
             $startDate = Carbon::parse($request->get('start_date', now()->subDays(30)->format('Y-m-d')))->startOfDay();
             $endDate = Carbon::parse($request->get('end_date', now()->format('Y-m-d')))->endOfDay();
@@ -46,7 +46,7 @@ class ReportController extends Controller
 
         $dateRange = $request->get('date_range', 'last_30_days');
         $dateOptions = $this->reportService->getDateRangeOptions();
-        
+
         if ($dateRange === 'custom') {
             $startDate = Carbon::parse($request->get('start_date', now()->subDays(30)->format('Y-m-d')))->startOfDay();
             $endDate = Carbon::parse($request->get('end_date', now()->format('Y-m-d')))->endOfDay();
@@ -72,7 +72,7 @@ class ReportController extends Controller
 
         $dateRange = $request->get('date_range', 'last_30_days');
         $dateOptions = $this->reportService->getDateRangeOptions();
-        
+
         if ($dateRange === 'custom') {
             $startDate = Carbon::parse($request->get('start_date', now()->subDays(30)->format('Y-m-d')))->startOfDay();
             $endDate = Carbon::parse($request->get('end_date', now()->format('Y-m-d')))->endOfDay();

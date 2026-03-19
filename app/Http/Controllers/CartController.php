@@ -11,7 +11,7 @@ class CartController extends Controller
 {
     public function index()
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return redirect()->route('login')->with('error', 'Please login to view your cart.');
         }
 
@@ -29,10 +29,11 @@ class CartController extends Controller
 
     public function add(Request $request, MenuItem $menuItem)
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Please login to add items to cart.'], 401);
             }
+
             return redirect()->route('login')->with('error', 'Please login to add items to cart.');
         }
 
@@ -98,12 +99,13 @@ class CartController extends Controller
             }
 
             return redirect()->route('cart')->with('success', 'Item(s) added to cart.');
-            
+
         } catch (\Exception $e) {
             if ($request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Error: '.$e->getMessage()], 500);
             }
-            return back()->with('error', 'Error adding item to cart: ' . $e->getMessage());
+
+            return back()->with('error', 'Error adding item to cart: '.$e->getMessage());
         }
     }
 

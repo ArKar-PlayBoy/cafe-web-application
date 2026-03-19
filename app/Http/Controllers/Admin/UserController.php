@@ -27,7 +27,7 @@ class UserController extends Controller
         $this->authorize('users.manage_staff');
 
         $currentUser = auth('admin')->user();
-        
+
         // Super admin can assign any role
         // Regular admin can only assign staff, manager, or customer roles
         if ($currentUser->isSuperAdmin()) {
@@ -56,7 +56,7 @@ class UserController extends Controller
         $role = Role::find($request->role_id);
 
         // Security checks
-        if ($role && in_array($role->slug, ['super_admin']) && !$currentUser->isSuperAdmin()) {
+        if ($role && in_array($role->slug, ['super_admin']) && ! $currentUser->isSuperAdmin()) {
             return back()->with('error', 'You do not have permission to create Super Admin users.');
         }
 
@@ -92,13 +92,13 @@ class UserController extends Controller
         $this->authorize('users.manage_staff');
 
         $currentUser = auth('admin')->user();
-        
+
         // Check if user can edit this specific user
-        if ($user->isSuperAdmin() && !$currentUser->isSuperAdmin()) {
+        if ($user->isSuperAdmin() && ! $currentUser->isSuperAdmin()) {
             return back()->with('error', 'You cannot edit a Super Admin user.');
         }
 
-        if ($user->isAdmin() && !$currentUser->isSuperAdmin() && $currentUser->id !== $user->id) {
+        if ($user->isAdmin() && ! $currentUser->isSuperAdmin() && $currentUser->id !== $user->id) {
             return back()->with('error', 'Only Super Admins can edit other admin users.');
         }
 
@@ -120,11 +120,11 @@ class UserController extends Controller
         $currentUser = auth('admin')->user();
 
         // Security checks
-        if ($user->isSuperAdmin() && !$currentUser->isSuperAdmin()) {
+        if ($user->isSuperAdmin() && ! $currentUser->isSuperAdmin()) {
             return back()->with('error', 'You cannot edit a Super Admin user.');
         }
 
-        if ($user->isAdmin() && !$currentUser->isSuperAdmin() && $currentUser->id !== $user->id) {
+        if ($user->isAdmin() && ! $currentUser->isSuperAdmin() && $currentUser->id !== $user->id) {
             return back()->with('error', 'Only Super Admins can edit other admin users.');
         }
 
@@ -140,12 +140,12 @@ class UserController extends Controller
         $role = Role::find($request->role_id);
 
         // Prevent non-super admins from assigning super_admin roles
-        if ($role && in_array($role->slug, ['super_admin']) && !$currentUser->isSuperAdmin()) {
+        if ($role && in_array($role->slug, ['super_admin']) && ! $currentUser->isSuperAdmin()) {
             return back()->with('error', 'You do not have permission to assign Super Admin role.');
         }
 
         // Prevent self-demotion from admin
-        if ($currentUser->id === $user->id && $currentUser->isAdmin() && $role && !$role->isSuperAdmin()) {
+        if ($currentUser->id === $user->id && $currentUser->isAdmin() && $role && ! $role->isSuperAdmin()) {
             return back()->with('error', 'You cannot demote yourself from admin.');
         }
 
@@ -161,13 +161,13 @@ class UserController extends Controller
             'phone' => strip_tags($request->phone ?? ''),
             'address' => strip_tags($request->address ?? ''),
         ];
-        
+
         if ($request->password) {
             $data['password'] = Hash::make($request->password);
         }
 
         $user->update($data);
-        
+
         // Use assignRole to trigger event for cache clearing
         if ($request->role_id && $role) {
             $user->assignRole($role);
@@ -200,8 +200,9 @@ class UserController extends Controller
         // Use Gate for complex permission checking
         $canDelete = Gate::allows('delete-user', $user);
 
-        if (!$canDelete) {
+        if (! $canDelete) {
             $result = PermissionService::canDeleteUser($currentUser, $user);
+
             return back()->with('error', $result['reason']);
         }
 
@@ -234,8 +235,9 @@ class UserController extends Controller
         // Use Gate for complex permission checking
         $canBan = Gate::allows('ban-user', $user);
 
-        if (!$canBan) {
+        if (! $canBan) {
             $result = PermissionService::canBanUser($currentUser, $user);
+
             return back()->with('error', $result['reason']);
         }
 
@@ -273,7 +275,7 @@ class UserController extends Controller
         }
 
         // Only super admins can unban other admins
-        if ($user->isAdmin() && !$currentUser->isSuperAdmin()) {
+        if ($user->isAdmin() && ! $currentUser->isSuperAdmin()) {
             return back()->with('error', 'Only Super Admins can unban admin users.');
         }
 

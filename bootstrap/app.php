@@ -26,6 +26,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->appendToGroup('web', [
             App\Http\Middleware\EnsureUserIsNotBanned::class,
         ]);
+
+        // Middleware aliases
+        $middleware->alias([
+            'validate.payment.screenshot' => App\Http\Middleware\ValidatePaymentScreenshot::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -11,10 +11,10 @@ class ClearUserAndOldRolePermissionsCache
     {
         $user = $event->user;
         $oldRoleId = $event->oldRoleId;
-        
+
         // Clear cache for the user whose role changed
         Cache::forget("user:{$user->id}:permissions");
-        
+
         // Also clear cache for users with the old role (in case role permissions changed)
         if ($oldRoleId) {
             $oldRoleUsers = \App\Models\User::where('role_id', $oldRoleId)->get();

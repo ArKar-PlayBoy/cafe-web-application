@@ -78,10 +78,10 @@ class RoleSeeder extends Seeder
         ];
         PermissionService::assignPermissionsToRole($admin, $adminPermissions);
 
-    // Staff permissions
-    $staffPermissions = [
-        // Orders
-        'orders.view', 'orders.manage', 'orders.cancel', 'orders.verify_payment',
+        // Staff permissions
+        $staffPermissions = [
+            // Orders
+            'orders.view', 'orders.manage', 'orders.cancel', 'orders.verify_payment',
             // Reservations
             'reservations.view', 'reservations.manage',
             // Stock (view only)
