@@ -72,7 +72,7 @@ class RoleSeeder extends Seeder
             // Categories
             'categories.view', 'categories.create', 'categories.edit', 'categories.delete',
             // Menu
-            'menu.view', 'menu.create', 'menu.edit', 'menu.delete',
+            'menu.view', 'menu.create', 'menu.edit', 'menu.delete', 'menu.view_cost',
             // Tables
             'tables.view', 'tables.create', 'tables.edit', 'tables.delete',
         ];

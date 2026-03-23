@@ -24,7 +24,7 @@ class DashboardController extends Controller
             'totalMenuItems' => MenuItem::count(),
             'totalTables' => CafeTable::count(),
             'pendingReservations' => Reservation::where('status', 'pending')->count(),
-            'lowStockItems' => StockItem::whereColumn('current_quantity', '<=', 'min_quantity')->count(),
+            'lowStockItems' => StockItem::whereColumn('current_quantity', '<', 'min_quantity')->count(),
         ];
 
         $recentOrders = Order::with('user', 'items')->latest()->take(5)->get();

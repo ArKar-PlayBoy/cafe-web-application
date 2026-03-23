@@ -117,6 +117,54 @@
     </div>
 </div>
 
+@can('menu.view_cost')
+<div class="glass-card rounded-2xl p-6 shadow-sm mt-8">
+    <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-6 flex items-center gap-2">
+        <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Profit Rate Report
+    </h2>
+    
+    @php
+    $allMenuItems = \App\Models\MenuItem::with('stockItems')->get();
+    $sortedByMargin = $allMenuItems->filter(fn($item) => $item->stockItems->count() > 0 && $item->getIngredientCost() > 0)
+        ->sortBy(fn($item) => $item->getProfitMargin());
+    @endphp
+    
+    @if($sortedByMargin->isEmpty())
+        <p class="text-slate-400 dark:text-slate-500 text-sm italic py-8 text-center">No menu items have linked stock recipes with costs.</p>
+    @else
+    <div class="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800/50">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="bg-slate-50/80 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-700/50">
+                    <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Item</th>
+                    <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Price</th>
+                    <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Cost</th>
+                    <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Profit</th>
+                    <th class="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Profit Rate</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100/80 dark:divide-slate-800/80">
+                @foreach($sortedByMargin as $item)
+                <tr class="hover:bg-emerald-50/50 dark:hover:bg-emerald-500/10 transition-colors">
+                    <td class="px-6 py-4 font-bold text-slate-800 dark:text-white">{{ $item->name }}</td>
+                    <td class="px-6 py-4 text-right text-slate-600 dark:text-slate-400">${{ number_format($item->price, 2) }}</td>
+                    <td class="px-6 py-4 text-right text-slate-600 dark:text-slate-400">${{ number_format($item->getIngredientCost(), 2) }}</td>
+                    <td class="px-6 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400">${{ number_format($item->getProfit(), 2) }}</td>
+                    <td class="px-6 py-4 text-right">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold {{ $item->getMarginBgClass() }} {{ $item->getMarginClass() }}">
+                            {{ $item->getProfitMargin() }}%
+                        </span>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+    @endif
+</div>
+@endcan
+
 <script>
 document.querySelector('select[name="date_range"]').addEventListener('change', function() {
     document.getElementById('customDates').classList.toggle('hidden', this.value !== 'custom');

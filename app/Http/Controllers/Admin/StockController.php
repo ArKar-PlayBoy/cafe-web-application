@@ -38,11 +38,16 @@ class StockController extends Controller
             'barcode' => 'nullable|string|unique:stock_items,barcode',
             'bin_location' => 'nullable|string|max:255',
             'category' => 'required|in:ingredient,supply',
+            'unit' => 'required|in:kg,g,L,ml,pcs',
+            'unit_cost' => 'nullable|numeric|min:0',
         ]);
 
         StockItem::create($request->only([
-            'name', 'current_quantity', 'min_quantity', 'barcode', 'bin_location', 'category',
+            'name', 'current_quantity', 'min_quantity', 'barcode', 'bin_location', 'category', 'unit', 'unit_cost',
         ]));
+
+        $stock = StockItem::latest()->first();
+        StockService::checkLowStock($stock);
 
         return redirect()->route('admin.stock.index')->with('success', 'Stock item created.');
     }
@@ -65,12 +70,16 @@ class StockController extends Controller
             'barcode' => 'nullable|string|unique:stock_items,barcode,'.$stock->id,
             'bin_location' => 'nullable|string|max:255',
             'category' => 'required|in:ingredient,supply',
+            'unit' => 'required|in:kg,g,L,ml,pcs',
+            'unit_cost' => 'nullable|numeric|min:0',
         ]);
 
         try {
             $stock->update($request->only([
-                'name', 'current_quantity', 'min_quantity', 'barcode', 'bin_location', 'category',
+                'name', 'current_quantity', 'min_quantity', 'barcode', 'bin_location', 'category', 'unit', 'unit_cost',
             ]));
+
+            StockService::checkLowStock($stock);
 
             return redirect()->route('admin.stock.index')->with('success', 'Stock item updated.');
         } catch (\Exception $e) {
@@ -132,7 +141,10 @@ class StockController extends Controller
     {
         $this->authorize('stock.view');
 
-        $alerts = StockAlert::with('stockItem')->orderBy('created_at', 'desc')->get();
+        $alerts = StockAlert::with('stockItem')
+            ->where('is_read', false)
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         return view('admin.stock.alerts', compact('alerts'));
     }

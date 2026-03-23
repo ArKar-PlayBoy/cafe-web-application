@@ -35,6 +35,12 @@ Category management (CRUD)
 
 Menu item management with images
 
+Menu Cost Analysis with profit rate calculation
+
+Cost breakdown per menu item
+
+Low profit rate warnings (<20%)
+
 Cafe table management
 
 User management (create/edit/ban)
@@ -134,7 +140,10 @@ admin	Admin users	/admin/login
 staff	Staff users	/staff/login
 🛡 Authorization (RBAC)
 
-Role-based access control is implemented with 32 permissions.
+Role-based access control is implemented with 32+ permissions.
+
+Notable permissions:
+- `menu.view_cost` - View cost and profit rate in menu items
 
 Roles
 
@@ -205,9 +214,40 @@ Expiry monitoring
 
 Waste logging
 
-Low stock alerts
+Low stock alerts (automatic on stock create/update)
 
 Expiring stock alerts
+
+Unit cost tracking (per unit of measure: kg, g, L, ml, pcs)
+
+Profit rate calculation per menu item
+
+### 💰 Cost & Profit Management
+
+The system calculates profit based on ingredient costs.
+
+**Features:**
+
+- Stock item unit costs (per kg, g, L, ml, pcs)
+- Recipe-based cost calculation  
+- Profit rate percentage per menu item
+- Low profit rate warnings (<20%)
+- Cost Analysis page for detailed breakdown
+
+**Flow:**
+
+1. Set unit cost in Stock items (e.g., Coffee Beans: $20/kg)
+2. Link stock items to menu items via Recipe page
+3. System auto-calculates: `Cost = Σ(stock_cost × quantity_needed)`
+4. Profit = `Price - Cost`
+5. Profit Rate = `(Profit ÷ Price) × 100%`
+6. View detailed breakdown in Menu → Cost Analysis
+
+**Validation:**
+
+- Profit only shows when recipe exists AND unit costs are set
+- Warning displayed if unit costs not configured
+- Low profit rate warning if below 20%
 
 🍳 Kitchen Display System
 

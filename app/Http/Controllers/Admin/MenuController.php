@@ -15,7 +15,7 @@ class MenuController extends Controller
     {
         $this->authorize('menu.view');
 
-        $menuItems = MenuItem::with('category')->latest()->get();
+        $menuItems = MenuItem::with(['category', 'stockItems'])->latest()->get();
 
         return view('admin.menu.index', compact('menuItems'));
     }
@@ -65,6 +65,7 @@ class MenuController extends Controller
         $this->authorize('menu.edit');
 
         $categories = Category::all();
+        $menu->load('stockItems');
 
         return view('admin.menu.edit', compact('menu', 'categories'));
     }
@@ -142,5 +143,25 @@ class MenuController extends Controller
         ]);
 
         return redirect()->route('admin.menu.index')->with('success', 'Menu item deleted successfully.');
+    }
+
+    public function costAnalysis(Request $request)
+    {
+        $this->authorize('menu.view_cost');
+
+        // Load only available items for dropdown
+        $menuItems = MenuItem::with('category')
+            ->where('is_available', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'category_id', 'price']);
+
+        // If user selected an item, load its full cost details
+        $selectedItem = null;
+        if ($request->has('item_id')) {
+            $selectedItem = MenuItem::with(['category', 'stockItems'])
+                ->find($request->item_id);
+        }
+
+        return view('admin.menu.cost-analysis', compact('menuItems', 'selectedItem'));
     }
 }

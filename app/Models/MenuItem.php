@@ -74,4 +74,57 @@ class MenuItem extends Model
     {
         return $this->orderItems()->count();
     }
+
+    public function getIngredientCost(): float
+    {
+        $cost = 0;
+
+        foreach ($this->stockItems as $stockItem) {
+            if ($stockItem->unit_cost && $stockItem->pivot->quantity_needed) {
+                $cost += $stockItem->unit_cost * $stockItem->pivot->quantity_needed;
+            }
+        }
+
+        return round($cost, 2);
+    }
+
+    public function getProfit(): float
+    {
+        return round($this->price - $this->getIngredientCost(), 2);
+    }
+
+    public function getProfitMargin(): float
+    {
+        if ($this->price <= 0) {
+            return 0;
+        }
+
+        return round(($this->getProfit() / $this->price) * 100, 1);
+    }
+
+    public function getMarginClass(): string
+    {
+        $margin = $this->getProfitMargin();
+
+        if ($margin >= 50) {
+            return 'text-emerald-600 dark:text-emerald-400';
+        } elseif ($margin >= 20) {
+            return 'text-amber-600 dark:text-amber-400';
+        } else {
+            return 'text-rose-600 dark:text-rose-400';
+        }
+    }
+
+    public function getMarginBgClass(): string
+    {
+        $margin = $this->getProfitMargin();
+
+        if ($margin >= 50) {
+            return 'bg-emerald-100 dark:bg-emerald-500/20';
+        } elseif ($margin >= 20) {
+            return 'bg-amber-100 dark:bg-amber-500/20';
+        } else {
+            return 'bg-rose-100 dark:bg-rose-500/20';
+        }
+    }
 }

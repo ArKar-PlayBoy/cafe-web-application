@@ -13,12 +13,20 @@
             <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mt-0.5">Manage dishes, prices, and availability</p>
         </div>
     </div>
-    @can('menu.create')
-    <a href="{{ route('admin.menu.create') }}" class="px-5 py-2.5 rounded-2xl bg-emerald-600 text-white text-sm font-bold shadow-lg shadow-emerald-600/30 hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        Add New Dish
-    </a>
-    @endcan
+    <div class="flex items-center gap-3">
+        @can('menu.view_cost')
+        <a href="{{ route('admin.menu.cost-analysis') }}" class="px-4 py-2.5 rounded-2xl bg-amber-500 text-white text-sm font-bold shadow-lg shadow-amber-500/30 hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+            Cost Analysis
+        </a>
+        @endcan
+        @can('menu.create')
+        <a href="{{ route('admin.menu.create') }}" class="px-5 py-2.5 rounded-2xl bg-emerald-600 text-white text-sm font-bold shadow-lg shadow-emerald-600/30 hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Add New Dish
+        </a>
+        @endcan
+    </div>
 </div>
 
 @if($menuItems->isEmpty())
@@ -68,8 +76,33 @@
             <h3 class="font-black text-lg text-slate-900 dark:text-white mb-1 leading-tight group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{{ $item->name }}</h3>
             <p class="text-sm font-medium text-slate-500 dark:text-slate-400 line-clamp-2 mt-2 leading-relaxed flex-1">{{ $item->description }}</p>
             
-            <div class="mt-5 pt-5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <span class="text-xl font-black text-slate-900 dark:text-white">${{ number_format($item->price, 2) }}</span>
+            <div class="mt-5 pt-5 border-t border-slate-100 dark:border-slate-800 flex items-start justify-between">
+                <div>
+                    <span class="text-xl font-black text-slate-900 dark:text-white">${{ number_format($item->price, 2) }}</span>
+                    
+                    @can('menu.view_cost')
+                    <div id="costColumns-{{ $item->id }}" class="hidden mt-2 space-y-1">
+                        @if($item->stockItems->count() > 0 && $item->getIngredientCost() > 0)
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="text-slate-500 dark:text-slate-400">Cost:</span>
+                            <span class="font-bold text-slate-700 dark:text-slate-300">${{ number_format($item->getIngredientCost(), 2) }}</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="text-slate-500 dark:text-slate-400">Profit:</span>
+                            <span class="font-bold text-slate-700 dark:text-slate-300">${{ number_format($item->getProfit(), 2) }}</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="text-slate-500 dark:text-slate-400">Profit Rate:</span>
+                            <span class="px-2 py-0.5 rounded-full font-bold text-xs {{ $item->getMarginBgClass() }} {{ $item->getMarginClass() }}">
+                                {{ $item->getProfitMargin() }}%
+                            </span>
+                        </div>
+                        @else
+                        <div class="text-xs text-slate-400 italic">No recipe</div>
+                        @endif
+                    </div>
+                    @endcan
+                </div>
                 
                 <div class="flex items-center gap-2">
                     @can('menu.edit')
@@ -93,4 +126,5 @@
     @endforeach
 </div>
 @endif
+
 @endsection

@@ -50,6 +50,24 @@
         </select>
     </div>
 
+    <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+            <label class="block text-sm font-medium mb-2" for="unit">Unit of Measure</label>
+            <select name="unit" id="unit" class="w-full border rounded px-3 py-2 dark:bg-gray-800 dark:border-gray-700" required autocomplete="off">
+                <option value="kg">kg (kilogram)</option>
+                <option value="g">g (gram)</option>
+                <option value="L">L (liter)</option>
+                <option value="ml">ml (milliliter)</option>
+                <option value="pcs">pcs (pieces)</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-2" for="unit_cost">Unit Cost ($)</label>
+            <input type="number" step="0.01" name="unit_cost" id="unit_cost" class="w-full border rounded px-3 py-2 dark:bg-gray-800 dark:border-gray-700" placeholder="0.00" autocomplete="off">
+            <p class="text-xs text-slate-500 mt-1">Cost per unit (e.g., $20.00/kg)</p>
+        </div>
+    </div>
+
     <div class="flex gap-4">
         <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">Create</button>
         <a href="{{ route('admin.stock.index') }}" class="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600">Cancel</a>

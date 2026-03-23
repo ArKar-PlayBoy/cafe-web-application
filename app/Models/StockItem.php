@@ -15,11 +15,14 @@ class StockItem extends Model
         'barcode',
         'bin_location',
         'category',
+        'unit',
+        'unit_cost',
     ];
 
     protected $casts = [
         'current_quantity' => 'integer',
         'min_quantity' => 'integer',
+        'unit_cost' => 'decimal:2',
     ];
 
     public function batches(): HasMany
@@ -56,5 +59,28 @@ class StockItem extends Model
     public function isLowStock(): bool
     {
         return $this->current_quantity < $this->min_quantity;
+    }
+
+    public function getFormattedCost(): string
+    {
+        if (! $this->unit_cost) {
+            return 'N/A';
+        }
+
+        return '$' . number_format($this->unit_cost, 2) . '/' . $this->unit;
+    }
+
+    public function getAverageBatchCost(): ?float
+    {
+        $batches = $this->batches()->where('quantity', '>', 0)->get();
+
+        if ($batches->isEmpty()) {
+            return null;
+        }
+
+        $totalCost = $batches->sum(fn ($batch) => $batch->quantity * $batch->cost);
+        $totalQty = $batches->sum('quantity');
+
+        return $totalQty > 0 ? $totalCost / $totalQty : null;
     }
 }

@@ -83,6 +83,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/logout', [AdminAuthController::class, 'logout'])->name('logout');
         Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
         Route::resource('categories', CategoryController::class);
+        Route::get('/menu/cost-analysis', [AdminMenuController::class, 'costAnalysis'])->name('menu.cost-analysis');
         Route::resource('menu', AdminMenuController::class);
         Route::resource('tables', AdminTableController::class);
         Route::resource('users', AdminUserController::class)->except(['show']);

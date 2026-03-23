@@ -68,6 +68,7 @@ class PermissionService
                 'menu.create' => 'Create Menu Items',
                 'menu.edit' => 'Edit Menu Items',
                 'menu.delete' => 'Delete Menu Items',
+                'menu.view_cost' => 'View Cost & Profit Margin',
             ],
         ],
         'system' => [
