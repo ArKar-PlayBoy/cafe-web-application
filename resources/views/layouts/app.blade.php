@@ -23,7 +23,7 @@
                         <div class="w-9 h-9 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center shadow-md">
                             <span class="text-white font-bold text-sm">C</span>
                         </div>
-                        <span class="font-semibold text-xl text-emerald-700 dark:text-emerald-400 hidden sm:block tracking-tight">Cafe</span>
+                        <span class="font-semibold text-xl text-emerald-700 dark:text-emerald-400 hidden lg:block tracking-tight">Cafe</span>
                     </a>
                 </div>
 
