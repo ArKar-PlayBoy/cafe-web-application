@@ -64,9 +64,34 @@ class Order extends Model
         return $this->belongsTo(User::class, 'cancelled_by');
     }
 
+    public const PAYMENT_STATUS_PENDING = 'pending';
+
+    public const PAYMENT_STATUS_AWAITING_VERIFICATION = 'awaiting_verification';
+
+    public const PAYMENT_STATUS_VERIFIED = 'verified';
+
+    public const PAYMENT_STATUS_PAID = 'paid';
+
+    public const PAYMENT_STATUS_FAILED = 'failed';
+
     public function isCOD(): bool
     {
         return $this->payment_method === 'cod';
+    }
+
+    public function isPaymentReviewableStatus(): bool
+    {
+        return in_array($this->payment_status, [
+            self::PAYMENT_STATUS_PENDING,
+            self::PAYMENT_STATUS_AWAITING_VERIFICATION,
+        ]);
+    }
+
+    public function canReviewPayment(): bool
+    {
+        return ! $this->isCOD()
+            && $this->payment_screenshot
+            && $this->isPaymentReviewableStatus();
     }
 
     public function needsDelivery(): bool

@@ -22,6 +22,23 @@ class CheckoutController extends Controller
     ) {}
 
     /**
+     * Mark an order as cancelled/failed with a diagnostic note.
+     * Idempotent: will not overwrite already-verified or already-cancelled orders.
+     */
+    private function cancelOrderAsFailed(Order $order, string $note): void
+    {
+        if (in_array($order->payment_status, ['verified', 'paid']) || $order->status === 'cancelled') {
+            return;
+        }
+
+        $order->update([
+            'status' => 'cancelled',
+            'payment_status' => 'failed',
+            'payment_note' => $note,
+        ]);
+    }
+
+    /**
      * Display checkout page
      */
     public function index()
@@ -180,15 +197,29 @@ class CheckoutController extends Controller
 
                 if ($paymentResult['status'] === 'requires_action') {
                     // Need 3D authentication - redirect to Stripe hosted authentication
-                    // The client_secret contains the PaymentIntent ID, we need to redirect to Stripe's authentication URL
                     $paymentIntentId = $paymentResult['payment_intent'];
-                    $clientSecret = $paymentResult['client_secret'];
 
                     // Redirect to Stripe's 3D Secure authentication page
                     return redirect("https://checkout.stripe.com/cpay/{$paymentIntentId}");
                 }
 
-                throw new \Exception('Payment failed: '.$paymentResult['status']);
+                if ($paymentResult['status'] === 'forbidden_payment_method') {
+                    Log::error('Saved-card checkout blocked due to ownership mismatch.', [
+                        'user_id' => Auth::id(),
+                        'order_id' => $order->id,
+                        'payment_method_id' => $paymentMethodId,
+                    ]);
+
+                    $this->cancelOrderAsFailed($order, 'Blocked: payment method ownership mismatch');
+
+                    return redirect()->route('cart')
+                        ->with('error', 'Payment processing failed. Please try another payment method.');
+                }
+
+                $this->cancelOrderAsFailed($order, 'Payment failed: '.($paymentResult['status'] ?? 'unknown'));
+
+                return redirect()->route('cart')
+                    ->with('error', 'Payment processing failed. Please try another payment method.');
             }
 
             if ($request->payment_method === 'stripe') {
@@ -267,7 +298,9 @@ class CheckoutController extends Controller
     }
 
     /**
-     * Verify payment after redirect from Stripe
+     * Verify payment after redirect from Stripe.
+     * Accepts either session_id (Checkout Sessions) or payment_intent (PaymentIntents/3DS).
+     * Rejects if both or neither are provided.
      */
     public function verifyPayment(Request $request)
     {
@@ -275,13 +308,14 @@ class CheckoutController extends Controller
         $paymentIntentId = $request->get('payment_intent');
         $orderId = $request->get('order_id');
 
-        // Accept both session_id (for Checkout Sessions) and payment_intent (for PaymentIntents)
-        if ((! $sessionId && ! $paymentIntentId) || ! $orderId) {
+        // Reject if both or neither are provided, or if order_id is missing
+        if ((! $sessionId && ! $paymentIntentId) || ($sessionId && $paymentIntentId) || ! $orderId) {
             return redirect()->route('cart')->with('error', 'Invalid payment verification');
         }
 
-        // Use whichever ID is provided
-        $verificationId = $sessionId ?? $paymentIntentId;
+        // Determine which verification path and stripe object ID to use
+        $isSession = (bool) $sessionId;
+        $stripeObjectId = $sessionId ?? $paymentIntentId;
 
         try {
             $order = Order::findOrFail($orderId);
@@ -297,13 +331,40 @@ class CheckoutController extends Controller
                     ->with('info', 'Payment was already confirmed.');
             }
 
-            $paymentResult = $this->paymentService->verifyPayment($verificationId);
+            // Dispatch to the correct service method
+            if ($isSession) {
+                $paymentResult = $this->paymentService->verifyPayment($sessionId);
+            } else {
+                $paymentResult = $this->paymentService->verifyPaymentIntent($paymentIntentId);
+            }
 
-            if ($paymentResult['status'] === 'paid') {
+            // Fail-closed: verify Stripe metadata binds this object to this order
+            $metadataOrderId = $paymentResult['metadata_order_id'];
+            $metadataUserId = $paymentResult['metadata_user_id'];
+
+            if (! $metadataOrderId || ! $metadataUserId
+                || (string) $metadataOrderId !== (string) $order->id
+                || (string) $metadataUserId !== (string) Auth::id()) {
+                Log::warning('Payment verification rejected: metadata mismatch.', [
+                    'order_id' => $order->id,
+                    'auth_user_id' => Auth::id(),
+                    'stripe_object_id' => $stripeObjectId,
+                    'verification_type' => $isSession ? 'session' : 'payment_intent',
+                    'metadata_order_id' => $metadataOrderId,
+                    'metadata_user_id' => $metadataUserId,
+                    'route' => $request->path(),
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+
+                return redirect()->route('cart')->with('error', 'Payment verification failed.');
+            }
+
+            if ($paymentResult['status'] === 'paid' || $paymentResult['status'] === 'succeeded') {
                 $order->update([
                     'payment_status' => 'verified',
                     'payment_reference' => $paymentResult['payment_intent'],
-                    'status' => 'confirmed',
+                    'status' => 'preparing',
                 ]);
 
                 KitchenTicket::firstOrCreate(
@@ -316,31 +377,7 @@ class CheckoutController extends Controller
                 Log::info('Stripe payment verified via verifyPayment', [
                     'order_id' => $order->id,
                     'payment_reference' => $paymentResult['payment_intent'],
-                ]);
-
-                return redirect()->route('orders.show', $order->id)
-                    ->with('success', 'Payment successful! Order confirmed.');
-            }
-
-            // For Stripe orders, verify if they have a valid session/payment intent ID
-            // This handles cases where webhook hasn't fired yet or status check failed
-            if ($order->payment_method === 'stripe' && ($sessionId || $paymentIntentId)) {
-                $order->update([
-                    'payment_status' => 'verified',
-                    'payment_reference' => $verificationId,
-                    'status' => 'confirmed',
-                ]);
-
-                KitchenTicket::firstOrCreate(
-                    ['order_id' => $order->id],
-                    ['status' => 'new']
-                );
-
-                Cart::where('user_id', Auth::id())->delete();
-
-                Log::warning('Stripe payment forced verified (fallback)', [
-                    'order_id' => $order->id,
-                    'verification_id' => $verificationId,
+                    'verification_type' => $isSession ? 'session' : 'payment_intent',
                 ]);
 
                 return redirect()->route('orders.show', $order->id)
@@ -465,9 +502,24 @@ class CheckoutController extends Controller
                     ]);
                 }
 
+                if ($result['status'] === 'forbidden_payment_method') {
+                    Log::error('Saved-card payment intent blocked due to ownership mismatch.', [
+                        'user_id' => $user->id,
+                        'order_id' => $order->id,
+                        'payment_method_id' => $paymentMethodId,
+                    ]);
+
+                    $this->cancelOrderAsFailed($order, 'Blocked: payment method ownership mismatch');
+
+                    return response()->json([
+                        'error' => 'Payment method is not authorized for this account.',
+                    ], 403);
+                }
+
                 // Payment failed
-                $order->delete();
-                return response()->json(['error' => 'Payment failed: '.$result['status']], 400);
+                $this->cancelOrderAsFailed($order, 'Payment failed: '.($result['status'] ?? 'unknown'));
+
+                return response()->json(['error' => 'Payment failed. Please try again.'], 400);
             }
 
             // New card payment
@@ -486,9 +538,9 @@ class CheckoutController extends Controller
             $result = $this->paymentService->createPaymentIntent($cartItems->toArray(), $order, $customerId);
 
             if (isset($result['error'])) {
-                // Delete the order if payment intent creation failed
-                $order->delete();
-                return response()->json(['error' => $result['error']], 400);
+                $this->cancelOrderAsFailed($order, 'Payment intent creation failed: '.($result['error'] ?? 'unknown'));
+
+                return response()->json(['error' => 'Failed to process payment. Please try again.'], 400);
             }
 
             Log::info('PaymentIntent created for order', [
@@ -506,7 +558,11 @@ class CheckoutController extends Controller
         } catch (\Exception $e) {
             Log::error('Create PaymentIntent error: '.$e->getMessage());
 
-            return response()->json(['error' => 'Failed to process payment: '.$e->getMessage()], 500);
+            if (isset($order)) {
+                $this->cancelOrderAsFailed($order, 'Payment processing error');
+            }
+
+            return response()->json(['error' => 'Failed to process payment. Please try again.'], 500);
         }
     }
 
@@ -541,10 +597,31 @@ class CheckoutController extends Controller
                 ]);
             }
 
-            // Verify payment with Stripe
-            $paymentResult = $this->paymentService->verifyPayment($request->payment_intent_id);
+            // Verify PaymentIntent with Stripe (not session)
+            $paymentResult = $this->paymentService->verifyPaymentIntent($request->payment_intent_id);
 
-            if ($paymentResult['status'] === 'paid') {
+            // Fail-closed: verify Stripe metadata binds this payment intent to this order
+            $metadataOrderId = $paymentResult['metadata_order_id'];
+            $metadataUserId = $paymentResult['metadata_user_id'];
+
+            if (! $metadataOrderId || ! $metadataUserId
+                || (string) $metadataOrderId !== (string) $order->id
+                || (string) $metadataUserId !== (string) Auth::id()) {
+                Log::warning('Payment confirmation rejected: metadata mismatch.', [
+                    'order_id' => $order->id,
+                    'auth_user_id' => Auth::id(),
+                    'stripe_object_id' => $request->payment_intent_id,
+                    'metadata_order_id' => $metadataOrderId,
+                    'metadata_user_id' => $metadataUserId,
+                    'route' => $request->path(),
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
+
+                return response()->json(['error' => 'Payment verification failed.'], 400);
+            }
+
+            if ($paymentResult['status'] === 'succeeded' || $paymentResult['status'] === 'paid') {
                 // Set payment_status to 'verified' for consistency
                 $order->update([
                     'payment_status' => 'verified',
@@ -578,12 +655,16 @@ class CheckoutController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => 'Payment not completed: '.$paymentResult['status'],
+                'error' => 'Payment not completed.',
             ], 400);
         } catch (\Exception $e) {
             Log::error('Confirm payment error: '.$e->getMessage());
 
-            return response()->json(['error' => 'Failed to confirm payment: '.$e->getMessage()], 500);
+            if (isset($order)) {
+                $this->cancelOrderAsFailed($order, 'Payment confirmation error');
+            }
+
+            return response()->json(['error' => 'Failed to confirm payment. Please try again.'], 500);
         }
     }
 

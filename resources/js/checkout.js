@@ -101,7 +101,7 @@ class CheckoutManager {
                         <span class="text-white text-xs font-bold">${(card.brand || 'card').toUpperCase().substring(0, 4)}</span>
                     </div>
                     <div>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white">•••• ${card.last4 || '****'}</p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">**** ${card.last4 || '****'}</p>
                         <p class="text-xs text-gray-500 dark:text-gray-400">Expires ${card.exp_month || '**'}/${card.exp_year || '****'}</p>
                     </div>
                 </div>

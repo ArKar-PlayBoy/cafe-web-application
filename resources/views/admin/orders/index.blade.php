@@ -191,7 +191,7 @@
                                 </dialog>
                                 @endif
                             @endcan
-                        @elseif($order->payment_method !== 'cod' && $order->payment_status !== 'verified' && $order->payment_screenshot)
+                        @elseif($order->canReviewPayment())
                             @can('orders.verify_payment')
                             <div class="flex gap-2 w-full sm:w-auto">
                                 <form action="{{ route('admin.orders.verify-payment', $order->id) }}" method="POST">

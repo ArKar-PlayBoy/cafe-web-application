@@ -6,6 +6,7 @@ use App\Models\Cart;
 use App\Models\MenuItem;
 use App\Services\StockService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class CartController extends Controller
 {
@@ -101,11 +102,13 @@ class CartController extends Controller
             return redirect()->route('cart')->with('success', 'Item(s) added to cart.');
 
         } catch (\Exception $e) {
+            Log::error('Cart error: '.$e->getMessage());
+
             if ($request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => 'Error: '.$e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Failed to update cart. Please try again.'], 500);
             }
 
-            return back()->with('error', 'Error adding item to cart: '.$e->getMessage());
+            return back()->with('error', 'Failed to update cart. Please try again.');
         }
     }
 

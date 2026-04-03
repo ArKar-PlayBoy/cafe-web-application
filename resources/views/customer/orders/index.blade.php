@@ -24,9 +24,14 @@
                     <p class="text-gray-500 dark:text-gray-400 text-sm">{{ $order->created_at->format('M d, Y H:i') }}</p>
                 </div>
                 <div class="text-right">
-                    <span class="px-3 py-1 text-sm rounded-full {{ $order->status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : ($order->status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : ($order->status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400')) }}">
+                    <span class="px-3 py-1 text-sm rounded-full {{ $order->status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : ($order->status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : ($order->status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : ($order->status === 'confirmed' ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'))) }}">
                         {{ ucfirst($order->status) }}
                     </span>
+                    @if(in_array($order->payment_status, ['verified', 'paid']))
+                        <span class="text-xs text-green-600 dark:text-green-400 ml-1">Paid</span>
+                    @elseif($order->payment_status === 'failed')
+                        <span class="text-xs text-red-600 dark:text-red-400 ml-1">Payment Failed</span>
+                    @endif
                     @if($order->status === 'cancelled')
                         @if($order->rejection)
                         <p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ $order->rejection->reason }}</p>

@@ -189,18 +189,35 @@ approval_requests
 
 Supported payment methods:
 
-Method	Verification
-Stripe	Automatic via webhook
-Saved Card	Automatic
-KBZ Pay	Manual screenshot verification
-COD	On delivery
-Stripe Webhook Events
+| Method | Verification | Notes |
+|---|---|---|
+| Stripe | Automatic | Verified through secure Stripe flow and webhook handling |
+| Saved Card (Stripe) | Automatic | Enforces payment-method ownership before charging |
+| KBZ Pay | Manual | Staff/Admin review uploaded screenshot |
+| COD | On delivery | Marked verified after cash collection |
 
-checkout.session.completed
+#### KBZ Pay Manual Review Rules
+Manual review eligibility is centralized in `Order::canReviewPayment()`.
 
-payment_intent.succeeded
+A payment is reviewable only when all are true:
+- Payment method is not COD
+- Screenshot exists
+- `payment_status` is `pending` or `awaiting_verification`
 
-payment_intent.payment_failed
+Terminal / non-reviewable statuses:
+- `verified`
+- `paid`
+- `failed` (rejected; cannot be reviewed again)
+
+### Stripe Webhook & Verification Security
+Hardened webhook and verification behavior includes:
+
+- Webhook signature verification is required outside local development.
+- Invalid signature/payload is fail-closed (rejected).
+- Replay protection binds verification to the expected `order_id` and `user_id` metadata.
+- Cancelled/failed orders are not reopened by late webhook events.
+- Duplicate webhook events do not create duplicate kitchen tickets.
+- Payment status transitions are normalized to avoid inconsistent order states.
 
 📦 Inventory System
 
@@ -273,25 +290,26 @@ Confirmation email sent
 
 Implemented security protections:
 
-Multi-guard authentication
+- Multi-guard authentication
+- Role-based access control
+- CSRF protection
+- Rate limiting
+- IDOR protection
+- Security headers
+- Password hashing (bcrypt)
+- Audit logging
+- Ban system
+- Approval workflow
 
-Role-based access control
+### Payment Security Hardening
+Payment security protections now include:
 
-CSRF protection
-
-Rate limiting
-
-IDOR protection
-
-Security headers
-
-Password hashing (bcrypt)
-
-Audit logging
-
-Ban system
-
-Approval workflow
+- Saved-card ownership checks before charge or delete operations.
+- Forensic retention of failed/blocked payment attempts (`status=cancelled`, `payment_status=failed`, diagnostic note).
+- Sanitized error responses (no sensitive internal exception leakage to clients).
+- Throttling on payment-sensitive endpoints.
+- Screenshot file path hardening (directory traversal protection).
+- Multi-guard auth + RBAC gate enforcement for admin/staff review actions.
 
 Security headers:
 
@@ -334,6 +352,14 @@ php artisan migrate --seed
 composer run dev
 🧪 Running Tests
 composer run test
+
+Current status:
+- 69 passing
+- 1 skipped (Stripe CLI-dependent integration test)
+
+Security-focused suites:
+- `tests/Feature/SecurityMinimalPatchTest.php`
+- `tests/Feature/PaymentReviewActionsTest.php`
 📊 Key Services
 Service	Purpose
 PaymentService	Stripe payments

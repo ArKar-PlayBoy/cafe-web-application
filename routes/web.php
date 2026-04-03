@@ -48,12 +48,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
 
     // Payment verification MUST be auth-protected (IDOR prevention)
-    Route::get('/checkout/verify', [CheckoutController::class, 'verifyPayment'])->name('checkout.verify');
+    Route::get('/checkout/verify', [CheckoutController::class, 'verifyPayment'])->name('checkout.verify')->middleware('throttle:20,1');
     
     // Stripe Payment Intents (for saved card functionality)
-    Route::post('/checkout/create-payment-intent', [CheckoutController::class, 'createPaymentIntent'])->name('checkout.create-payment-intent');
-    Route::post('/checkout/confirm-payment', [CheckoutController::class, 'confirmPayment'])->name('checkout.confirm-payment');
-    Route::get('/checkout/saved-cards', [CheckoutController::class, 'loadSavedCards'])->name('checkout.saved-cards');
+    Route::post('/checkout/create-payment-intent', [CheckoutController::class, 'createPaymentIntent'])->name('checkout.create-payment-intent')->middleware('throttle:20,1');
+    Route::post('/checkout/confirm-payment', [CheckoutController::class, 'confirmPayment'])->name('checkout.confirm-payment')->middleware('throttle:20,1');
+    Route::get('/checkout/saved-cards', [CheckoutController::class, 'loadSavedCards'])->name('checkout.saved-cards')->middleware('throttle:20,1');
     Route::get('/orders', [OrderController::class, 'index'])->name('orders');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::post('/orders/{order}/upload-payment', [OrderController::class, 'uploadPayment'])

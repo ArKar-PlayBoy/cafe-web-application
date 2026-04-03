@@ -103,7 +103,7 @@ use Illuminate\Support\Str;
                 </td>
                 <td class="px-4 py-4 text-gray-900 dark:text-gray-100">
                     {{-- Payment Verification (Staff can do this) --}}
-                    @if($order->payment_method !== 'cod' && $order->payment_status !== 'verified' && $order->payment_status !== 'paid' && $order->payment_screenshot)
+                    @if($order->canReviewPayment())
                     <div class="flex flex-col gap-2 mb-2">
                         <form action="{{ route('staff.orders.verify-payment', $order->id) }}" method="POST">
                             @csrf

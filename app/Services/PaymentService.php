@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Events\OrderCreated;
+use App\Exceptions\PaymentMethodOwnershipException;
 use App\Models\Cart;
 use App\Models\KitchenTicket;
 use App\Models\Order;
@@ -91,7 +92,8 @@ class PaymentService
     }
 
     /**
-     * Verify Stripe payment session
+     * Verify Stripe Checkout Session.
+     * Returns status, amount, payment_intent, and metadata for binding verification.
      */
     public function verifyPayment(string $sessionId): array
     {
@@ -102,10 +104,33 @@ class PaymentService
                 'status' => $session->payment_status,
                 'amount_total' => $session->amount_total / 100,
                 'payment_intent' => $session->payment_intent ?? null,
+                'metadata_order_id' => $session->metadata->order_id ?? null,
+                'metadata_user_id' => $session->metadata->user_id ?? null,
             ];
         } catch (ApiErrorException $e) {
             Log::error('Payment verification failed: '.$e->getMessage());
-            throw new \Exception('Failed to verify payment: '.$e->getMessage());
+            throw new \Exception('Failed to verify payment.');
+        }
+    }
+
+    /**
+     * Verify Stripe PaymentIntent.
+     * Returns status, id, and metadata for binding verification.
+     */
+    public function verifyPaymentIntent(string $paymentIntentId): array
+    {
+        try {
+            $paymentIntent = PaymentIntent::retrieve($paymentIntentId);
+
+            return [
+                'status' => $paymentIntent->status,
+                'payment_intent' => $paymentIntent->id,
+                'metadata_order_id' => $paymentIntent->metadata->order_id ?? null,
+                'metadata_user_id' => $paymentIntent->metadata->user_id ?? null,
+            ];
+        } catch (ApiErrorException $e) {
+            Log::error('PaymentIntent verification failed: '.$e->getMessage());
+            throw new \Exception('Failed to verify payment intent.');
         }
     }
 
@@ -220,15 +245,16 @@ class PaymentService
     public function handleWebhook(string $payload, ?string $signature): array
     {
         $webhookSecret = config('stripe.webhook_secret');
+        $isLocal = app()->environment('local');
 
         // --- Signature Verification ---
         if (empty($webhookSecret) || $webhookSecret === 'whsec_your_webhook_secret_here') {
-            Log::warning('Stripe webhook secret is not configured. Skipping verification in non-production mode.');
-            if (app()->environment('production')) {
-                Log::error('Stripe webhook secret is not set in production!');
+            if (! $isLocal) {
+                Log::error('Stripe webhook secret is not configured outside local environment.');
                 throw new \Exception('Webhook secret not configured.');
             }
-            // In non-production, parse the event without signature verification
+
+            Log::warning('Stripe webhook secret is not configured. Allowing unsigned webhook only in local environment.');
             $event = json_decode($payload, true);
         } else {
             try {
@@ -279,24 +305,7 @@ class PaymentService
             return ['status' => 'order_not_found'];
         }
 
-        // Set payment_status to 'verified' for consistency with KBZ Pay manual verification
-        $order->update([
-            'payment_status' => 'verified',
-            'payment_reference' => $session['payment_intent'] ?? null,
-            'status' => 'confirmed',
-        ]);
-
-        // Create kitchen ticket only if not already exists (idempotency to prevent duplicates)
-        KitchenTicket::firstOrCreate(
-            ['order_id' => $order->id],
-            ['status' => 'new']
-        );
-
-        // Clear cart after successful payment
-        Cart::where('user_id', $order->user_id)->delete();
-
-        // Send confirmation email after Stripe payment is verified
-        event(new OrderCreated($order));
+        $this->markOrderAsPaid($order, $session['payment_intent'] ?? null);
 
         Log::info('Payment completed for order: '.$orderId);
 
@@ -320,30 +329,46 @@ class PaymentService
             return ['status' => 'order_not_found'];
         }
 
-        // Set payment_status to 'verified' for consistency with KBZ Pay manual verification
-        $order->update([
-            'payment_status' => 'verified',
-            'payment_reference' => $paymentIntent['id'],
-            'status' => 'confirmed',
-        ]);
-
-        // Create kitchen ticket only if not already exists (idempotency to prevent duplicates)
-        KitchenTicket::firstOrCreate(
-            ['order_id' => $order->id],
-            ['status' => 'new']
-        );
-
-        // Clear cart after successful payment
-        Cart::where('user_id', $order->user_id)->delete();
-
-        // Send confirmation email
-        event(new OrderCreated($order));
+        $this->markOrderAsPaid($order, $paymentIntent['id']);
 
         Log::info('Payment succeeded for order: '.$orderId, [
             'payment_intent' => $paymentIntent['id'],
         ]);
 
         return ['status' => 'success', 'order_id' => $orderId];
+    }
+
+    /**
+     * Mark order as paid and queue kitchen work.
+     * Idempotent: will not downgrade order status if already past pre-kitchen states.
+     */
+    private function markOrderAsPaid(Order $order, ?string $paymentReference): void
+    {
+        // Early return for terminal states — no side effects (ticket, event, cart)
+        if (in_array($order->status, ['cancelled', 'completed'])) {
+            return;
+        }
+
+        $update = ['payment_status' => 'verified', 'payment_reference' => $paymentReference];
+
+        // Only advance status to 'preparing' if the order hasn't reached the kitchen yet
+        if (in_array($order->status, ['pending', 'confirmed'])) {
+            $update['status'] = 'preparing';
+        }
+
+        $order->update($update);
+
+        KitchenTicket::firstOrCreate(
+            ['order_id' => $order->id],
+            ['status' => 'new']
+        );
+
+        Cart::where('user_id', $order->user_id)->delete();
+
+        // Only fire event if not already confirmed/paid (avoid duplicate emails)
+        if ($order->wasChanged('payment_status')) {
+            event(new OrderCreated($order));
+        }
     }
 
     /**
@@ -514,7 +539,24 @@ class PaymentService
         $amount = (int) round($order->total * 100);
 
         try {
-            $paymentIntent = PaymentIntent::create([
+            $paymentMethod = $this->retrievePaymentMethod($paymentMethodId);
+            $paymentMethodCustomerId = $this->extractPaymentMethodCustomerId($paymentMethod);
+
+            if (! $paymentMethodCustomerId || $paymentMethodCustomerId !== $customerId) {
+                Log::warning('Blocked saved-card payment attempt due to ownership mismatch.', [
+                    'order_id' => $order->id,
+                    'user_id' => $order->user_id,
+                    'payment_method_id' => $paymentMethodId,
+                    'expected_customer_id' => $customerId,
+                    'actual_customer_id' => $paymentMethodCustomerId,
+                ]);
+
+                return [
+                    'status' => 'forbidden_payment_method',
+                ];
+            }
+
+            $paymentIntent = $this->createStripePaymentIntent([
                 'amount' => $amount,
                 'currency' => $this->currency,
                 'customer' => $customerId,
@@ -556,11 +598,23 @@ class PaymentService
     /**
      * Delete a saved payment method
      */
-    public function deletePaymentMethod(string $paymentMethodId): bool
+    public function deletePaymentMethod(string $paymentMethodId, string $expectedCustomerId): bool
     {
         try {
-            $paymentMethod = PaymentMethod::retrieve($paymentMethodId);
-            $paymentMethod->detach();
+            $paymentMethod = $this->retrievePaymentMethod($paymentMethodId);
+            $paymentMethodCustomerId = $this->extractPaymentMethodCustomerId($paymentMethod);
+
+            if (! $paymentMethodCustomerId || $paymentMethodCustomerId !== $expectedCustomerId) {
+                Log::warning('Blocked payment method delete attempt due to ownership mismatch.', [
+                    'payment_method_id' => $paymentMethodId,
+                    'expected_customer_id' => $expectedCustomerId,
+                    'actual_customer_id' => $paymentMethodCustomerId,
+                ]);
+
+                throw new PaymentMethodOwnershipException('Payment method ownership mismatch.');
+            }
+
+            $this->detachStripePaymentMethod($paymentMethod);
 
             return true;
         } catch (ApiErrorException $e) {
@@ -568,5 +622,47 @@ class PaymentService
 
             return false;
         }
+    }
+
+    /**
+     * Wrapper for Stripe API retrieval to simplify testing.
+     */
+    protected function retrievePaymentMethod(string $paymentMethodId)
+    {
+        return PaymentMethod::retrieve($paymentMethodId);
+    }
+
+    /**
+     * Wrapper for Stripe API detach to simplify testing.
+     */
+    protected function detachStripePaymentMethod($paymentMethod): void
+    {
+        $paymentMethod->detach();
+    }
+
+    /**
+     * Wrapper for Stripe PaymentIntent creation to simplify testing.
+     */
+    protected function createStripePaymentIntent(array $payload)
+    {
+        return PaymentIntent::create($payload);
+    }
+
+    /**
+     * Extract customer id from a Stripe payment method object.
+     */
+    private function extractPaymentMethodCustomerId(object $paymentMethod): ?string
+    {
+        $customer = $paymentMethod->customer ?? null;
+
+        if (is_string($customer)) {
+            return $customer;
+        }
+
+        if (is_object($customer) && isset($customer->id) && is_string($customer->id)) {
+            return $customer->id;
+        }
+
+        return null;
     }
 }

@@ -98,9 +98,8 @@ class OrderController extends Controller
     {
         $this->authorize('orders.verify_payment');
 
-        // Fix: Check for 'pending' or 'awaiting_verification' status
-        if (! $order->payment_screenshot || in_array($order->payment_status, ['verified', 'paid'])) {
-            return back()->with('error', 'No payment screenshot to verify or already verified.');
+        if (! $order->canReviewPayment()) {
+            return back()->with('error', 'Payment cannot be reviewed.');
         }
 
         $previousStatus = $order->payment_status;
@@ -139,9 +138,8 @@ class OrderController extends Controller
             'note' => 'required|string|max:1000',
         ]);
 
-        // Fix: Check for statuses that can be rejected
-        if (! $order->payment_screenshot || in_array($order->payment_status, ['verified', 'paid', 'failed'])) {
-            return back()->with('error', 'No payment screenshot to reject or already processed.');
+        if (! $order->canReviewPayment()) {
+            return back()->with('error', 'Payment cannot be reviewed.');
         }
 
         $order->update([
@@ -170,13 +168,18 @@ class OrderController extends Controller
             abort(404);
         }
 
-        $path = storage_path('app/public/'.$order->payment_screenshot);
+        // Sanitize path to prevent directory traversal
+        $filename = basename($order->payment_screenshot);
+        $directory = dirname($order->payment_screenshot);
+        $safePath = storage_path('app/public/'.$directory.'/'.$filename);
+        $realPath = realpath($safePath);
+        $allowedBase = realpath(storage_path('app/public'));
 
-        if (! file_exists($path)) {
+        if (! $realPath || ! $allowedBase || ! str_starts_with($realPath, $allowedBase)) {
             abort(404);
         }
 
-        return response()->file($path);
+        return response()->file($realPath);
     }
 
     public function outForDelivery(Order $order)

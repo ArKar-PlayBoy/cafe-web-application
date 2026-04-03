@@ -94,7 +94,7 @@
             </div>
 
             <!-- Action Buttons -->
-            @if($order->payment_status !== 'verified')
+@if($order->canReviewPayment())
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg mt-6 p-6">
                 <h3 class="text-lg font-semibold mb-4 dark:text-white">Verify Payment</h3>
                 <div class="flex flex-wrap gap-3">
@@ -115,7 +115,7 @@
                     </button>
                 </div>
             </div>
-            @else
+            @elseif(in_array($order->payment_status, [\App\Models\Order::PAYMENT_STATUS_VERIFIED, \App\Models\Order::PAYMENT_STATUS_PAID], true))
             <div class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-xl p-6 mt-6">
                 <div class="flex items-center gap-3">
                     <div class="bg-green-100 dark:bg-green-900 p-2 rounded-full">
@@ -126,6 +126,34 @@
                     <div>
                         <h3 class="font-semibold text-green-800 dark:text-green-200">Payment Verified</h3>
                         <p class="text-sm text-green-700 dark:text-green-300">This payment has been verified and confirmed.</p>
+                    </div>
+                </div>
+            </div>
+            @elseif($order->payment_status === \App\Models\Order::PAYMENT_STATUS_FAILED)
+            <div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-xl p-6 mt-6">
+                <div class="flex items-center gap-3">
+                    <div class="bg-red-100 dark:bg-red-900 p-2 rounded-full">
+                        <svg class="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-red-800 dark:text-red-200">Payment Rejected</h3>
+                        <p class="text-sm text-red-700 dark:text-red-300">This payment was rejected. {{ $order->payment_note ? 'Reason: ' . $order->payment_note : '' }}</p>
+                    </div>
+                </div>
+            </div>
+            @else
+            <div class="bg-gray-50 dark:bg-gray-900/30 border border-gray-200 dark:border-gray-700 rounded-xl p-6 mt-6">
+                <div class="flex items-center gap-3">
+                    <div class="bg-gray-100 dark:bg-gray-900 p-2 rounded-full">
+                        <svg class="w-6 h-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-800 dark:text-gray-200">No Action Available</h3>
+                        <p class="text-sm text-gray-700 dark:text-gray-300">This payment cannot be reviewed.</p>
                     </div>
                 </div>
             </div>
@@ -236,7 +264,7 @@
 </div>
 
 <!-- Reject Modal -->
-@if($order->payment_status !== 'verified')
+@if($order->canReviewPayment())
 <dialog id="rejectModal" class="modal p-6 rounded-2xl shadow-2xl bg-white dark:bg-gray-800 border dark:border-gray-700 w-full max-w-md">
     <div class="flex justify-between items-center mb-4">
         <h3 class="text-xl font-bold dark:text-white">Reject Payment - Order #{{ $order->id }}</h3>
