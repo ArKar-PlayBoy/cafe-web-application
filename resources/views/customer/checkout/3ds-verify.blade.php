@@ -7,13 +7,21 @@
 @endpush
 
 @section('content')
-<div class="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 lg:py-12">
-    <div class="max-w-md mx-auto px-4 sm:px-6 lg:px-8">
+<div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-12 flex items-center justify-center relative overflow-hidden">
+    {{-- Decorative Background Blurs --}}
+    <div class="absolute -top-32 -left-32 w-96 h-96 bg-emerald-400/20 dark:bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-blue-400/20 dark:bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="max-w-md w-full mx-auto px-4 sm:px-6 z-10">
         
-        <div class="mb-8">
-            <h1 class="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">Payment Verification</h1>
-            <p class="text-gray-500 dark:text-gray-400 font-medium mt-1">Verifying your payment with 3D Secure</p>
-        </div>
+        <div class="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/50 dark:border-gray-700/50 rounded-3xl shadow-2xl overflow-hidden p-6 sm:p-8 ring-1 ring-black/5 dark:ring-white/10">
+            <div class="mb-6 text-center">
+                <div class="w-16 h-16 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-2xl rotate-3 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-emerald-500/30 text-white animate-pulse">
+                     <svg class="w-8 h-8 -rotate-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                </div>
+                <h1 class="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">Payment Verification</h1>
+                <p class="text-gray-500 dark:text-gray-400 font-medium mt-1 text-sm">Verifying your payment with 3D Secure</p>
+            </div>
 
         {{-- Error Messages --}}
         @if(session('error'))
@@ -25,7 +33,7 @@
         @endif
 
         {{-- Loading State --}}
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
+        <div>
             <div class="text-center py-8">
                 <svg class="animate-spin w-12 h-12 mx-auto text-emerald-600" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -35,8 +43,8 @@
                 <p class="text-gray-500 dark:text-gray-400 text-sm mt-2">You may be redirected to your bank for verification</p>
             </div>
         </div>
-
     </div>
+</div>
 </div>
 
 <script>

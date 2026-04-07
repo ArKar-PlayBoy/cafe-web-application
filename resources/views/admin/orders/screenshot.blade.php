@@ -184,7 +184,7 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Payment Method</p>
-                        <p class="font-semibold dark:text-white">{{ strtoupper($order->payment_method) }}</p>
+                        <p class="font-semibold dark:text-white">{{ $order->payment_method_label }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Payment Status</p>

@@ -144,5 +144,32 @@ class Order extends Model
             'delivery_failed_reason' => $reason,
         ]);
     }
+
+    public function getPaymentMethodLabelAttribute(): string
+    {
+        return match ($this->payment_method) {
+            'stripe' => 'Credit/Debit Card',
+            'cod' => 'Cash on Delivery (COD)',
+            'kbz_pay' => 'KBZ Pay',
+            default => 'Credit/Debit Card',
+        };
+    }
+
+    public function getNormalizedPaymentMethodAttribute(): string
+    {
+        $method = $this->payment_method;
+        
+        if (str_starts_with($method, 'saved_')) {
+            return 'stripe';
+        }
+        
+        $allowed = ['stripe', 'cod', 'kbz_pay'];
+        
+        if (in_array($method, $allowed)) {
+            return $method;
+        }
+        
+        return 'stripe';
+    }
     
 }

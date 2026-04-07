@@ -40,7 +40,7 @@ use Illuminate\Support\Str;
                 <td class="px-4 py-4 whitespace-nowrap text-gray-900 dark:text-gray-100">${{ number_format($order->total, 2) }}</td>
                 <td class="px-4 py-4">
                     <div class="flex flex-col gap-1">
-                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ strtoupper($order->payment_method) }}</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ $order->payment_method_label }}</span>
                         @if($order->payment_method !== 'cod')
                         <span class="px-2 py-0.5 text-xs rounded-full {{ $order->payment_status === 'verified' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : ($order->payment_status === 'failed' ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300' : ($order->payment_status === 'awaiting_verification' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-300')) }}">
                             {{ ucfirst(str_replace('_', ' ', $order->payment_status)) }}

@@ -5,6 +5,9 @@ AI Barista is a modern full-stack cafe management platform built with Laravel 12
 The system combines order management, reservations, inventory tracking, payment processing, and AI-powered drink recommendations into one integrated platform.
 
 🚀 Features
+
+
+
 👤 Customer Features
 
 User registration, login, logout
@@ -343,6 +346,14 @@ Payment security protections now include:
 - Throttling on payment-sensitive endpoints.
 - Screenshot file path hardening (directory traversal protection).
 - Multi-guard auth + RBAC gate enforcement for admin/staff review actions.
+
+🆕 Recent Updates 
+
+- Checkout: customers can remove saved Stripe cards directly from the checkout page (AJAX) and the saved-cards list refreshes immediately.
+- Checkout: added a “Manage all saved cards” link to the payment-methods page for full management.
+- Payments/Security: payment-method deletion now supports JSON responses for AJAX requests (proper `403/404/500` statuses) while keeping redirect + flash messages for normal page requests.
+- Payments/Security: server logs for payment-method deletion are sanitized (no raw Stripe payment method IDs).
+- UI: checkout error display now preserves the warning icon while updating only the error message text.
 
 Security headers:
 

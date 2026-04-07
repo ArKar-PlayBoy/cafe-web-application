@@ -43,6 +43,46 @@ class CheckoutManager {
         this.updatePaymentSections();
     }
 
+    getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.content : '';
+    }
+
+    async removeSavedCard(cardId) {
+        if (!confirm('Are you sure you want to remove this saved card?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/payment-methods', {
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': this.getCsrfToken(),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ payment_method_id: cardId }),
+            });
+
+            let data;
+            try {
+                data = await response.json();
+            } catch (e) {
+                throw new Error(`Server error: ${response.status} ${response.statusText}`);
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || data.message || 'Failed to remove card');
+            }
+
+            this.savedCardsLoaded = false;
+            await this.loadSavedCards();
+        } catch (error) {
+            this.showError(error.message || 'Failed to remove card');
+        }
+    }
+
     setupEventListeners() {
         document.querySelectorAll('input[name="payment_method_radio"]').forEach((radio) => {
             radio.addEventListener('change', () => this.handlePaymentMethodChange());
@@ -190,14 +230,14 @@ class CheckoutManager {
             const expYear = card.exp_year || '****';
 
             const label = document.createElement('label');
-            label.className = 'saved-card-option flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all';
+            label.className = 'saved-card-option flex items-stretch gap-2 p-3 border rounded-lg cursor-pointer transition-all';
             label.setAttribute('data-value', value);
 
             const radio = document.createElement('input');
             radio.type = 'radio';
             radio.name = 'saved_or_new_card';
             radio.value = value;
-            radio.className = 'w-4 h-4 text-emerald-600';
+            radio.className = 'w-4 h-4 text-emerald-600 mt-1';
             if (checked) radio.checked = true;
 
             const innerDiv = document.createElement('div');
@@ -224,6 +264,17 @@ class CheckoutManager {
             innerDiv.appendChild(infoDiv);
             label.appendChild(radio);
             label.appendChild(innerDiv);
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'remove-card-btn self-center px-2 py-1 text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors';
+            removeBtn.textContent = 'Remove';
+            removeBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.removeSavedCard(card.id);
+            });
+            label.appendChild(removeBtn);
 
             return label;
         });

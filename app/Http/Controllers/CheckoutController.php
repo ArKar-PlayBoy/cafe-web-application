@@ -156,13 +156,18 @@ class CheckoutController extends Controller
                 if ($request->payment_method === 'kbz_pay') {
                     $initialPaymentStatus = 'awaiting_verification';
                 }
-                
+
+                // Normalize payment_method: convert saved_* to stripe before storing
+                $normalizedPaymentMethod = $request->payment_method;
+                if (str_starts_with($normalizedPaymentMethod, 'saved_')) {
+                    $normalizedPaymentMethod = 'stripe';
+                }
 
                 $orderData = [
                     'user_id' => Auth::id(),
                     'status' => 'pending',
                     'total' => $total,
-                    'payment_method' => $request->payment_method,
+                    'payment_method' => $normalizedPaymentMethod,
                     'payment_status' => $initialPaymentStatus,
                 ];
 
@@ -222,8 +227,7 @@ class CheckoutController extends Controller
                 Log::info('Saved card checkout: Creating payment intent', [
                     'user_id' => Auth::id(),
                     'order_id' => $order->id,
-                    'payment_method_id' => $paymentMethodId,
-                    'payment_method_value' => $request->payment_method,
+                    'using_saved_card' => true,
                 ]);
                 
                 $paymentResult = $this->paymentService->createPaymentIntentWithSavedCard($order, $paymentMethodId, $cartItems->toArray());
@@ -273,7 +277,7 @@ class CheckoutController extends Controller
                     Log::error('Saved-card checkout blocked due to ownership mismatch.', [
                         'user_id' => Auth::id(),
                         'order_id' => $order->id,
-                        'payment_method_id' => $paymentMethodId,
+                        'blocked' => true,
                     ]);
 
                     $order->update([
@@ -579,7 +583,7 @@ class CheckoutController extends Controller
                 // Using saved card
                 Log::info('Creating payment with saved card', [
                     'order_id' => $order->id,
-                    'payment_method_id' => $paymentMethodId,
+                    'using_saved_card' => true,
                 ]);
 
                 $result = $this->paymentService->createPaymentIntentWithSavedCard($order, $paymentMethodId, $cartItems->toArray());
@@ -623,7 +627,7 @@ class CheckoutController extends Controller
                     Log::error('Saved-card payment intent blocked due to ownership mismatch.', [
                         'user_id' => $user->id,
                         'order_id' => $order->id,
-                        'payment_method_id' => $paymentMethodId,
+                        'blocked' => true,
                     ]);
 
                     $this->deleteOrderOnFailure($order, 'Blocked: payment method ownership mismatch');

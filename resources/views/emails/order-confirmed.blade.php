@@ -29,7 +29,7 @@
                 <span class="status">{{ ucfirst($order->status) }}</span>
             </div>
             
-            <p><strong>Payment Method:</strong> {{ ucfirst(str_replace('_', ' ', $order->payment_method)) }}</p>
+            <p><strong>Payment Method:</strong> {{ $order->payment_method_label }}</p>
             <p><strong>Payment Status:</strong> {{ ucfirst($order->payment_status) }}</p>
             
             <h3 style="margin: 20px 0 10px 0;">Order Items</h3>

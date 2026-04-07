@@ -57,7 +57,7 @@
 
         <div class="border-t dark:border-gray-700 pt-6 mt-6">
             <h2 class="font-semibold text-lg mb-4">Payment Information</h2>
-            <p class="text-gray-600 dark:text-gray-400"><strong>Method:</strong> {{ strtoupper($order->payment_method) }}</p>
+            <p class="text-gray-600 dark:text-gray-400"><strong>Method:</strong> {{ $order->payment_method_label }}</p>
             <p class="text-gray-600 dark:text-gray-400"><strong>Status:</strong> 
                 <span class="{{ in_array($order->payment_status, ['verified', 'paid']) ? 'text-green-600 dark:text-green-400' : ($order->payment_status === 'failed' ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400') }}">
                     {{ ucfirst($order->payment_status) }}

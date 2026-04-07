@@ -16,7 +16,7 @@ class OrderResource extends JsonResource
             'user_email' => $this->user?->email,
             'status' => $this->status,
             'total' => (float) $this->total,
-            'payment_method' => $this->payment_method,
+            'payment_method' => $this->normalized_payment_method,
             'payment_status' => $this->payment_status,
             'payment_reference' => $this->payment_reference,
             'items' => OrderItemResource::collection($this->whenLoaded('items')),

@@ -416,7 +416,7 @@ class PaymentService
         Log::info('SetupIntent succeeded - card saved', [
             'setup_intent_id' => $setupIntent['id'],
             'customer_id' => $customerId,
-            'payment_method' => $setupIntent['payment_method'] ?? null,
+            'card_saved' => true,
         ]);
 
         return ['status' => 'success', 'customer_id' => $customerId];
@@ -637,7 +637,7 @@ class PaymentService
                 Log::warning('Blocked saved-card payment attempt due to ownership mismatch.', [
                     'order_id' => $order->id,
                     'user_id' => $order->user_id,
-                    'payment_method_id' => $paymentMethodId,
+                    'blocked' => true,
                     'expected_customer_id' => $customerId,
                     'actual_customer_id' => $paymentMethodCustomerId,
                 ]);
@@ -697,7 +697,7 @@ class PaymentService
 
             if (! $paymentMethodCustomerId || $paymentMethodCustomerId !== $expectedCustomerId) {
                 Log::warning('Blocked payment method delete attempt due to ownership mismatch.', [
-                    'payment_method_id' => $paymentMethodId,
+                    'blocked' => true,
                     'expected_customer_id' => $expectedCustomerId,
                     'actual_customer_id' => $paymentMethodCustomerId,
                 ]);

@@ -69,7 +69,7 @@
                     </td>
                     <td class="px-6 py-5">
                         <div class="flex flex-col gap-1.5 items-start">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{{ $order->payment_method }}</span>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{{ $order->payment_method_label }}</span>
                             @if($order->payment_method !== 'cod')
                                 @php
                                     $paymentConfig = [

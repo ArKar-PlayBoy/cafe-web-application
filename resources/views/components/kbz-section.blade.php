@@ -1,6 +1,6 @@
 {{-- KBZ Pay Section Component --}}
-<div id="kbz-section" class="bg-gray-50 dark:bg-gray-800/40 rounded-lg border border-gray-200 dark:border-gray-700 p-5 mb-6 hidden transition-all">
-    <div class="bg-white dark:bg-gray-900 border border-blue-100 dark:border-blue-900/50 rounded-lg p-5 shadow-sm">
+<div id="kbz-section" class="bg-gradient-to-br from-blue-50/50 to-gray-50 dark:from-blue-900/10 dark:to-gray-800/40 rounded-2xl border border-blue-100/50 dark:border-gray-700 p-6 mb-6 hidden transition-all shadow-sm">
+    <div class="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border border-white dark:border-gray-800 rounded-xl p-6 shadow-sm ring-1 ring-black/5 dark:ring-white/5">
         <div class="flex items-center gap-3 mb-4">
             <div class="w-10 h-10 rounded bg-[#006CBB] flex items-center justify-center text-white shrink-0">
                 <span class="font-extrabold text-sm tracking-tighter">KBZ</span>
@@ -77,9 +77,9 @@
 
 {{-- QR Code Modal (for full-screen viewing) --}}
 @if(file_exists(public_path('images/kbz-qr.png')))
-<div id="qr-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden items-center justify-center p-4" onclick="closeQRModal()">
-    <div class="bg-white dark:bg-gray-900 rounded-2xl p-6 max-w-sm w-full relative" onclick="event.stopPropagation()">
-        <button onclick="closeQRModal()" class="absolute top-3 right-3 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+<div id="qr-modal" class="fixed inset-0 bg-gray-900/40 dark:bg-gray-900/60 backdrop-blur-md z-[100] hidden items-center justify-center p-4 transition-all" onclick="closeQRModal()">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full relative shadow-2xl ring-1 ring-black/5 dark:ring-white/10 transform transition-all scale-95 opacity-0 duration-300" id="qr-modal-content" onclick="event.stopPropagation()">
+        <button onclick="closeQRModal()" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
         <div class="text-center">
@@ -94,19 +94,32 @@
 <script>
 function openQRModal() {
     const modal = document.getElementById('qr-modal');
+    const content = document.getElementById('qr-modal-content');
     if (modal) {
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         document.body.style.overflow = 'hidden';
+        
+        // Add smooth animation
+        setTimeout(() => {
+            content.classList.remove('scale-95', 'opacity-0');
+            content.classList.add('scale-100', 'opacity-100');
+        }, 10);
     }
 }
 
 function closeQRModal() {
     const modal = document.getElementById('qr-modal');
+    const content = document.getElementById('qr-modal-content');
     if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        document.body.style.overflow = '';
+        content.classList.remove('scale-100', 'opacity-100');
+        content.classList.add('scale-95', 'opacity-0');
+        
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.body.style.overflow = '';
+        }, 300);
     }
 }
 
