@@ -21,7 +21,7 @@ class WeatherService
 
         return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($lat, $lon) {
             try {
-                $response = Http::timeout(10)->get('https://api.open-meteo.com/v1/forecast', [
+                $response = Http::connectTimeout(2)->timeout(3)->get('https://api.open-meteo.com/v1/forecast', [
                     'latitude' => $lat,
                     'longitude' => $lon,
                     'current' => 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code',

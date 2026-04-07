@@ -17,10 +17,6 @@ class AuditLog extends Model
         'resource_id',
         'old_values',
         'new_values',
-        'ip_address',
-        'user_agent',
-        'url',
-        'method',
         'is_critical',
     ];
 

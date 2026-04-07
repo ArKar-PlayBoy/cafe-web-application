@@ -17,14 +17,17 @@ class OrderController extends Controller
     {
         // Show orders that either:
         // 1. Are COD (payment collected on delivery)
-        // 2. Have verified/paid payment
-        // 3. Have a payment screenshot uploaded (awaiting verification)
-        // 4. Are KBZ Pay orders waiting for payment (payment_status = awaiting_verification)
-        // 5. Are Stripe orders (auto-verified payment)
+        // 2. Are Stripe orders with verified/paid payment
+        // 3. Have verified/paid payment status
+        // 4. Have a payment screenshot uploaded (awaiting verification)
+        // 5. Are KBZ Pay orders waiting for payment (payment_status = awaiting_verification)
         $orders = Order::with('user', 'items.menuItem', 'rejection')
             ->where(function ($query) {
                 $query->where('payment_method', 'cod')
-                    ->orWhere('payment_method', 'stripe')
+                    ->orWhere(function ($q) {
+                        $q->where('payment_method', 'stripe')
+                          ->whereIn('payment_status', ['verified', 'paid']);
+                    })
                     ->orWhereIn('payment_status', ['verified', 'paid'])
                     ->orWhereNotNull('payment_screenshot')
                     ->orWhere(function ($q) {
@@ -42,12 +45,25 @@ class OrderController extends Controller
     {
         $this->authorize('orders.manage');
         $request->validate([
-            'status' => 'required|in:pending,preparing,ready,completed,cancelled,confirmed',
+            'status' => 'required|in:pending,preparing,ready,completed',
         ]);
 
         $previousStatus = $order->status;
+        $newStatus = $request->status;
 
-        $order->update(['status' => $request->status]);
+        $validTransitions = [
+            'pending' => ['preparing', 'cancelled'],
+            'preparing' => ['ready', 'cancelled'],
+            'ready' => ['completed', 'cancelled'],
+            'completed' => [],
+            'cancelled' => [],
+        ];
+
+        if (! in_array($newStatus, $validTransitions[$previousStatus] ?? [])) {
+            return back()->with('error', "Cannot change order status from '{$previousStatus}' to '{$newStatus}'.");
+        }
+
+        $order->update(['status' => $newStatus]);
 
         // For COD orders, send confirmation email when status changes to 'preparing'
         // This is when the order is officially confirmed and kitchen starts preparing
@@ -72,6 +88,12 @@ class OrderController extends Controller
     public function reject(Request $request, Order $order)
     {
         $this->authorize('orders.cancel');
+
+        $nonRejectableStatuses = ['completed', 'delivered', 'cancelled'];
+
+        if (in_array($order->status, $nonRejectableStatuses)) {
+            return back()->with('error', 'Cannot reject an order that is already ' . $order->status . '.');
+        }
 
         $request->validate([
             'reason' => 'required|string|max:255',

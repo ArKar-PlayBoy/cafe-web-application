@@ -11,6 +11,12 @@ class OrderController extends Controller
     {
         $orders = Order::with('items.menuItem', 'rejection')
             ->where('user_id', auth()->id())
+            ->whereNotIn('status', ['cancelled'])
+            ->whereNotIn('payment_status', ['failed'])
+            ->where(function ($query) {
+                $query->where('payment_method', '!=', 'stripe')
+                    ->orWhere('payment_status', '!=', 'pending');
+            })
             ->latest()
             ->paginate(15);
 

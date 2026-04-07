@@ -831,6 +831,7 @@ it('webhook checkout.session.completed sets status to preparing for pending orde
     /** @var \Tests\TestCase $this */
     $this->app['config']->set('stripe.webhook_secret', null);
     $this->app->detectEnvironment(fn () => 'local');
+    $this->app['config']->set('stripe.skip_webhook_verification', true);
 
     $order = Order::factory()->create([
         'user_id' => User::factory()->create()->id,
@@ -862,6 +863,7 @@ it('webhook payment_intent.succeeded sets status to preparing for pending order'
     /** @var \Tests\TestCase $this */
     $this->app['config']->set('stripe.webhook_secret', null);
     $this->app->detectEnvironment(fn () => 'local');
+    $this->app['config']->set('stripe.skip_webhook_verification', true);
 
     $order = Order::factory()->create([
         'user_id' => User::factory()->create()->id,
@@ -892,6 +894,7 @@ it('webhook does not downgrade preparing order to confirmed', function () {
     /** @var \Tests\TestCase $this */
     $this->app['config']->set('stripe.webhook_secret', null);
     $this->app->detectEnvironment(fn () => 'local');
+    $this->app['config']->set('stripe.skip_webhook_verification', true);
 
     $order = Order::factory()->create([
         'user_id' => User::factory()->create()->id,
@@ -922,6 +925,7 @@ it('webhook does not change cancelled order status', function () {
     /** @var \Tests\TestCase $this */
     $this->app['config']->set('stripe.webhook_secret', null);
     $this->app->detectEnvironment(fn () => 'local');
+    $this->app['config']->set('stripe.skip_webhook_verification', true);
 
     $order = Order::factory()->create([
         'user_id' => User::factory()->create()->id,
@@ -953,6 +957,7 @@ it('duplicate webhook does not create duplicate kitchen tickets', function () {
     /** @var \Tests\TestCase $this */
     $this->app['config']->set('stripe.webhook_secret', null);
     $this->app->detectEnvironment(fn () => 'local');
+    $this->app['config']->set('stripe.skip_webhook_verification', true);
 
     $order = Order::factory()->create([
         'user_id' => User::factory()->create()->id,
@@ -976,4 +981,108 @@ it('duplicate webhook does not create duplicate kitchen tickets', function () {
 
     $ticketCount = KitchenTicket::where('order_id', $order->id)->count();
     expect($ticketCount)->toBe(1);
+});
+
+// --- CSV Injection Neutralization ---
+
+it('sanitizes CSV cells with dangerous formula prefixes', function () {
+    expect(\App\Helpers\CsvSanitizer::sanitizeCell('=HYPERLINK("http://evil.com")'))->toBe('\'=HYPERLINK("http://evil.com")')
+        ->and(\App\Helpers\CsvSanitizer::sanitizeCell('+cmd|\' /C calc\'!A0'))->toBe("'+cmd|' /C calc'!A0")
+        ->and(\App\Helpers\CsvSanitizer::sanitizeCell('@SUM(A1)'))->toBe("'@SUM(A1)")
+        ->and(\App\Helpers\CsvSanitizer::sanitizeCell('-1+cmd|\' /C calc\'!A0'))->toBe("'-1+cmd|' /C calc'!A0");
+});
+
+it('sanitizes CSV cells with tab and CRLF prefixed dangerous chars', function () {
+    expect(\App\Helpers\CsvSanitizer::sanitizeCell("\t=cmd"))->toBe("'\t=cmd")
+        ->and(\App\Helpers\CsvSanitizer::sanitizeCell("\r\n@SUM"))->toBe("'\r\n@SUM")
+        ->and(\App\Helpers\CsvSanitizer::sanitizeCell("\n=HYPERLINK(\"http://evil.com\")"))->toBe("'\n=HYPERLINK(\"http://evil.com\")");
+});
+
+it('does not alter safe CSV cells', function () {
+    expect(\App\Helpers\CsvSanitizer::sanitizeCell('John Doe'))->toBe('John Doe')
+        ->and(\App\Helpers\CsvSanitizer::sanitizeCell('123.45'))->toBe('123.45')
+        ->and(\App\Helpers\CsvSanitizer::sanitizeCell(''))->toBe('')
+        ->and(\App\Helpers\CsvSanitizer::sanitizeCell('pending'))->toBe('pending');
+});
+
+// --- Webhook Verification Strictness ---
+
+it('allows webhook bypass in local env with flag and no signature', function () {
+    /** @var \Tests\TestCase $this */
+    $this->app->detectEnvironment(fn () => 'local');
+    config(['stripe.webhook_secret' => null]);
+    config(['stripe.skip_webhook_verification' => true]);
+
+    $service = new PaymentService();
+    $result = $service->handleWebhook(
+        json_encode([
+            'type' => 'checkout.session.completed',
+            'data' => ['object' => [
+                'metadata' => ['order_id' => '1'],
+            ]],
+        ]),
+        null
+    );
+
+    expect($result['status'])->toBe('order_not_found');
+});
+
+it('rejects webhook with invalid signature even in local env with flag', function () {
+    /** @var \Tests\TestCase $this */
+    $this->app->detectEnvironment(fn () => 'local');
+    config(['stripe.webhook_secret' => 'whsec_test_secret']);
+    config(['stripe.skip_webhook_verification' => true]);
+
+    $service = new PaymentService();
+
+    expect(fn () => $service->handleWebhook('{"type":"checkout.session.completed"}', 'invalid_signature'))
+        ->toThrow(Exception::class, 'Invalid webhook signature.');
+});
+
+it('rejects webhook without signature when secret is configured even in local env with flag', function () {
+    /** @var \Tests\TestCase $this */
+    $this->app->detectEnvironment(fn () => 'local');
+    config(['stripe.webhook_secret' => 'whsec_test_secret']);
+    config(['stripe.skip_webhook_verification' => true]);
+
+    $service = new PaymentService();
+
+    expect(fn () => $service->handleWebhook('{"type":"checkout.session.completed"}', null))
+        ->toThrow(Exception::class, 'Invalid webhook signature.');
+});
+
+it('rejects webhook in local env when flag is false and no signature', function () {
+    /** @var \Tests\TestCase $this */
+    $this->app->detectEnvironment(fn () => 'local');
+    config(['stripe.webhook_secret' => null]);
+    config(['stripe.skip_webhook_verification' => false]);
+
+    $service = new PaymentService();
+
+    expect(fn () => $service->handleWebhook('{"type":"checkout.session.completed"}', null))
+        ->toThrow(Exception::class, 'Webhook secret not configured.');
+});
+
+it('rejects webhook in testing env when flag is false and no signature', function () {
+    /** @var \Tests\TestCase $this */
+    $this->app->detectEnvironment(fn () => 'testing');
+    config(['stripe.webhook_secret' => null]);
+    config(['stripe.skip_webhook_verification' => false]);
+
+    $service = new PaymentService();
+
+    expect(fn () => $service->handleWebhook('{"type":"checkout.session.completed"}', null))
+        ->toThrow(Exception::class, 'Webhook secret not configured.');
+});
+
+it('rejects webhook in production env without signature', function () {
+    /** @var \Tests\TestCase $this */
+    $this->app->detectEnvironment(fn () => 'production');
+    config(['stripe.webhook_secret' => null]);
+    config(['stripe.skip_webhook_verification' => true]);
+
+    $service = new PaymentService();
+
+    expect(fn () => $service->handleWebhook('{"type":"checkout.session.completed"}', null))
+        ->toThrow(Exception::class, 'Webhook secret not configured.');
 });

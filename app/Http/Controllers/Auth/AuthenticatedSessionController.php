@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\BannedEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -24,7 +25,10 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        $user = \App\Models\User::where('email', $request->email)->first();
+        $normalizedEmail = BannedEmail::normalizeEmail((string) $request->input('email'));
+        $request->merge(['email' => $normalizedEmail]);
+
+        $user = \App\Models\User::whereRaw('LOWER(email) = ?', [$normalizedEmail])->first();
 
         if ($user && $user->is_banned) {
             if ($user->ban_reason) {
@@ -39,6 +43,16 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+
+        $user = Auth::user();
+
+        if ($user->isAdmin()) {
+         return redirect()->intended(route('admin.dashboard'));
+            }
+            
+        if ($user->isStaff()) {
+        return redirect()->intended(route('staff.dashboard'));
+        }
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

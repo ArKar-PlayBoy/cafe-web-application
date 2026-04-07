@@ -14,7 +14,28 @@ class OrderController extends Controller
     {
         $this->authorize('orders.view');
 
-        $orders = Order::with('user', 'items.menuItem')->latest()->paginate(15);
+        // Show orders that either:
+        // 1. Are COD (payment collected on delivery)
+        // 2. Are Stripe orders with verified/paid payment
+        // 3. Have verified/paid payment status
+        // 4. Have a payment screenshot uploaded (awaiting verification)
+        // 5. Are KBZ Pay orders waiting for payment (payment_status = awaiting_verification)
+        $orders = Order::with('user', 'items.menuItem')
+            ->where(function ($query) {
+                $query->where('payment_method', 'cod')
+                    ->orWhere(function ($q) {
+                        $q->where('payment_method', 'stripe')
+                          ->whereIn('payment_status', ['verified', 'paid']);
+                    })
+                    ->orWhereIn('payment_status', ['verified', 'paid'])
+                    ->orWhereNotNull('payment_screenshot')
+                    ->orWhere(function ($q) {
+                        $q->where('payment_method', 'kbz_pay')
+                            ->where('payment_status', 'awaiting_verification');
+                    });
+            })
+            ->latest()
+            ->paginate(15);
 
         return view('admin.orders.index', compact('orders'));
     }
@@ -109,7 +130,7 @@ class OrderController extends Controller
 
     public function outForDelivery(Order $order)
     {
-        $this->authorize('orders.update');
+        $this->authorize('orders.manage');
 
         if (! $order->isCOD()) {
             return back()->with('error', 'Only COD orders can be marked as out for delivery.');
@@ -144,7 +165,7 @@ class OrderController extends Controller
 
     public function markDeliveryFailed(Request $request, Order $order)
     {
-        $this->authorize('orders.update');
+        $this->authorize('orders.manage');
 
         $request->validate([
             'reason' => 'required|string|max:500',

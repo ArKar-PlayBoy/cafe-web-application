@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Helpers\CsvSanitizer;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use Illuminate\Http\Request;
@@ -26,13 +27,13 @@ class OrderExportController extends Controller
             })->implode('; ');
 
             fputcsv($handle, [
-                $order->id,
-                $order->created_at->toDateTimeString(),
-                $order->user->name ?? 'N/A',
-                $items,
-                $order->total,
-                $order->status,
-                $order->payment_status,
+                CsvSanitizer::sanitizeCell((string) $order->id),
+                CsvSanitizer::sanitizeCell($order->created_at->toDateTimeString()),
+                CsvSanitizer::sanitizeCell($order->user->name ?? 'N/A'),
+                CsvSanitizer::sanitizeCell($items),
+                CsvSanitizer::sanitizeCell((string) $order->total),
+                CsvSanitizer::sanitizeCell($order->status),
+                CsvSanitizer::sanitizeCell($order->payment_status),
             ]);
 
             fclose($handle);
@@ -46,6 +47,12 @@ class OrderExportController extends Controller
     public function exportAllCsv(Request $request)
     {
         $this->authorize('orders.view');
+
+        $request->validate([
+            'status' => 'nullable|in:pending,preparing,ready,completed,cancelled',
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+        ]);
 
         $query = Order::with('user', 'items.menuItem')->latest();
 
@@ -76,13 +83,13 @@ class OrderExportController extends Controller
                 })->implode('; ');
 
                 fputcsv($handle, [
-                    $order->id,
-                    $order->created_at->toDateTimeString(),
-                    $order->user->name ?? 'N/A',
-                    $items,
-                    $order->total,
-                    $order->status,
-                    $order->payment_status,
+                    CsvSanitizer::sanitizeCell((string) $order->id),
+                    CsvSanitizer::sanitizeCell($order->created_at->toDateTimeString()),
+                    CsvSanitizer::sanitizeCell($order->user->name ?? 'N/A'),
+                    CsvSanitizer::sanitizeCell($items),
+                    CsvSanitizer::sanitizeCell((string) $order->total),
+                    CsvSanitizer::sanitizeCell($order->status),
+                    CsvSanitizer::sanitizeCell($order->payment_status),
                 ]);
             }
 

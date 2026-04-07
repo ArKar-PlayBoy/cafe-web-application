@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\BannedEmail;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
@@ -35,6 +36,19 @@ class NewPasswordController extends Controller
             'email' => ['required', 'email'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
+
+        $normalizedEmail = BannedEmail::normalizeEmail((string) $request->input('email'));
+        $request->merge(['email' => $normalizedEmail]);
+
+        $isDenylisted = BannedEmail::isBlocked($normalizedEmail);
+        $isBannedUser = User::whereRaw('LOWER(email) = ?', [$normalizedEmail])
+            ->where('is_banned', true)
+            ->exists();
+
+        if ($isDenylisted || $isBannedUser) {
+            return back()->withInput($request->only('email'))
+                ->withErrors(['email' => 'Unable to reset password.']);
+        }
 
         // Here we will attempt to reset the user's password. If it is successful we
         // will update the password on an actual user model and persist it to the

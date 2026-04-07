@@ -19,11 +19,15 @@
         </div>
         <p class="text-gray-500 dark:text-gray-400 mt-2">Capacity: {{ $table->capacity }} persons</p>
         <div class="flex gap-2 mt-4">
+            @can('tables.edit')
             <a href="{{ route('admin.tables.edit', $table->id) }}" class="bg-amber-500 text-white px-3 py-1 rounded-lg hover:bg-amber-600 transition-colors shadow-sm hover:shadow active:scale-95">Edit</a>
+            @endcan
+            @can('tables.delete')
             <form action="{{ route('admin.tables.destroy', $table->id) }}" method="POST">
                 @csrf @method('DELETE')
                 <button type="submit" class="bg-rose-600 text-white px-3 py-1 rounded-lg hover:bg-rose-700 transition-colors shadow-sm hover:shadow active:scale-95" onclick="return confirm('Are you sure?')">Delete</button>
             </form>
+            @endcan
         </div>
     </div>
     @endforeach

@@ -3,9 +3,6 @@
 @section('title', 'Menu')
 
 @section('content')
-@php
-    $initialCartCount = auth()->check() ? \App\Models\Cart::where('user_id', auth()->id())->sum('quantity') : 0;
-@endphp
 
 <!-- Hero / Header Section -->
 <div class="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 sticky top-[64px] z-40 pt-4 sm:pt-6">

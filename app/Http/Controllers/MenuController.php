@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cart;
 use App\Models\Category;
 use App\Models\MenuItem;
 use Illuminate\Http\Request;
@@ -21,15 +22,17 @@ class MenuController extends Controller
         }
 
         if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
+            $escapedSearch = str_replace(['%', '_'], ['\%', '\_'], $search);
+            $query->where(function ($q) use ($escapedSearch) {
+                $q->where('name', 'like', "%{$escapedSearch}%")
+                    ->orWhere('description', 'like', "%{$escapedSearch}%");
             });
         }
 
         $menuItems = $query->get();
         $categories = Category::all();
+        $initialCartCount = auth()->check() ? Cart::where('user_id', auth()->id())->sum('quantity') : 0;
 
-        return view('customer.menu.index', compact('menuItems', 'categories'));
+        return view('customer.menu.index', compact('menuItems', 'categories', 'initialCartCount'));
     }
 }

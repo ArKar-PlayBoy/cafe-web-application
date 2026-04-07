@@ -103,6 +103,7 @@ use Illuminate\Support\Str;
                 </td>
                 <td class="px-4 py-4 text-gray-900 dark:text-gray-100">
                     {{-- Payment Verification (Staff can do this) --}}
+                    @can('orders.verify_payment')
                     @if($order->canReviewPayment())
                     <div class="flex flex-col gap-2 mb-2">
                         <form action="{{ route('staff.orders.verify-payment', $order->id) }}" method="POST">
@@ -126,8 +127,10 @@ use Illuminate\Support\Str;
                             </form>
                         </dialog>
                     </div>
+                    @endif
+                    @endcan
                     {{-- Action buttons for confirmed/preparing orders --}}
-                    @elseif(in_array($order->status, ['confirmed', 'preparing']))
+                    @if(in_array($order->status, ['confirmed', 'preparing']))
                     <div class="flex flex-col gap-2">
                         <form action="{{ route('staff.orders.status', $order->id) }}" method="POST">
                             @csrf

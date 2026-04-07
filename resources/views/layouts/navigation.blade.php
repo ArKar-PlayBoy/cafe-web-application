@@ -37,6 +37,12 @@
                         <x-dropdown-link :href="route('profile.edit')">
                             {{ __('Profile') }}
                         </x-dropdown-link>
+                        
+                        @auth
+                        <x-dropdown-link :href="route('payment-methods.index')">
+                            {{ __('Payment Methods') }}
+                        </x-dropdown-link>
+                        @endauth
 
                         <!-- Authentication -->
                         <form method="POST" action="{{ route('logout') }}">
@@ -82,6 +88,10 @@
             <div class="mt-3 space-y-1">
                 <x-responsive-nav-link :href="route('profile.edit')">
                     {{ __('Profile') }}
+                </x-responsive-nav-link>
+
+                <x-responsive-nav-link :href="route('payment-methods.index')">
+                    {{ __('Payment Methods') }}
                 </x-responsive-nav-link>
 
                 <!-- Authentication -->

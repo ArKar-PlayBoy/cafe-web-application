@@ -13,6 +13,9 @@
     </script>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100">
+    @php
+        $layoutCartCount = (int) ($cartCount ?? 0);
+    @endphp
     <!-- Navbar -->
     <nav x-data="{ mobileMenuOpen: false, userMenuOpen: false }" class="sticky top-0 z-50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg shadow-sm border-b border-transparent dark:border-slate-700/50 transition-all duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -66,12 +69,9 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
                             </svg>
-                            @php
-                                $cartCount = \App\Models\Cart::where('user_id', auth()->id())->sum('quantity');
-                            @endphp
-                            @if($cartCount > 0)
+                            @if($layoutCartCount > 0)
                                 <span class="cart-count-badge absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                                    {{ $cartCount > 9 ? '9+' : $cartCount }}
+                                    {{ $layoutCartCount > 9 ? '9+' : $layoutCartCount }}
                                 </span>
                             @else
                                 <span class="cart-count-badge hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
@@ -113,6 +113,12 @@
                                     </svg>
                                     Profile
                                 </a>
+                                <a href="{{ route('user.social.accounts') }}" class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    <svg class="inline w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                    </svg>
+                                    Connected Accounts
+                                </a>
                                 <div class="border-t border-gray-100 dark:border-gray-700 mt-1 pt-1">
                                     @php
                                         $logoutRoute = match(true) {
@@ -151,12 +157,9 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
                             </svg>
-                            @php
-                                $cartCount = \App\Models\Cart::where('user_id', auth()->id())->sum('quantity');
-                            @endphp
-                            @if($cartCount > 0)
+                            @if($layoutCartCount > 0)
                                 <span class="cart-count-badge absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                                    {{ $cartCount > 9 ? '9+' : $cartCount }}
+                                    {{ $layoutCartCount > 9 ? '9+' : $layoutCartCount }}
                                 </span>
                             @else
                                 <span class="cart-count-badge hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 items-center justify-center">
@@ -185,8 +188,8 @@
                 <form action="{{ route('menu') }}" method="GET">
                     <div class="relative">
                         <input type="text" name="search" value="{{ request('search') }}" placeholder="Search menu..." 
-                            class="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus-500">
-                        <svg class="absolute left-3:ring-teal top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            class="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                         </svg>
                     </div>
@@ -218,11 +221,8 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
                         </svg>
                         Cart
-                        @php
-                            $cartCount = \App\Models\Cart::where('user_id', auth()->id())->sum('quantity');
-                        @endphp
-                        @if($cartCount > 0)
-                            <span class="cart-count-badge ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{{ $cartCount }}</span>
+                        @if($layoutCartCount > 0)
+                            <span class="cart-count-badge ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{{ $layoutCartCount }}</span>
                         @else
                             <span class="cart-count-badge hidden ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">0</span>
                         @endif
@@ -244,6 +244,12 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                         </svg>
                         Profile
+                    </a>
+                    <a href="{{ route('user.social.accounts') }}" class="flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                        Connected Accounts
                     </a>
                     <div class="border-t border-gray-100 dark:border-gray-700 mt-2 pt-2">
                         @php

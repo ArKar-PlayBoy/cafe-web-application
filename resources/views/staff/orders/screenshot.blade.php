@@ -94,7 +94,8 @@
             </div>
 
             <!-- Action Buttons -->
-@if($order->canReviewPayment())
+            @can('orders.verify_payment')
+            @if($order->canReviewPayment())
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg mt-6 p-6">
                 <h3 class="text-lg font-semibold mb-4 dark:text-white">Verify Payment</h3>
                 <div class="flex flex-wrap gap-3">
@@ -158,6 +159,7 @@
                 </div>
             </div>
             @endif
+            @endcan
         </div>
 
         <!-- Order Details Sidebar -->
@@ -264,6 +266,7 @@
 </div>
 
 <!-- Reject Modal -->
+@can('orders.verify_payment')
 @if($order->canReviewPayment())
 <dialog id="rejectModal" class="modal p-6 rounded-2xl shadow-2xl bg-white dark:bg-gray-800 border dark:border-gray-700 w-full max-w-md">
     <div class="flex justify-between items-center mb-4">
@@ -291,6 +294,7 @@
     </form>
 </dialog>
 @endif
+@endcan
 
 <style>
     .cursor-zoom-in {

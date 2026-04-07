@@ -35,6 +35,7 @@
 
         <form id="checkout-form" method="POST" action="{{ route('checkout.store') }}">
             @csrf
+            <input type="hidden" name="payment_method" id="payment_method_input" value="{{ old('payment_method', 'stripe') }}">
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                 
@@ -76,16 +77,17 @@
                     
                     {{-- Save Card Checkbox --}}
                     <div id="save-card-section" class="hidden bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-                        <label class="flex items-center gap-3 cursor-pointer">
-                            <input 
-                                type="checkbox" 
-                                name="save_card" 
-                                id="save_card" 
+                        <label class="flex items-start gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                name="save_card"
+                                id="save_card"
                                 value="1"
-                                class="w-4 h-4 text-emerald-600 rounded border-gray-300 dark:border-gray-600 focus:ring-emerald-500 cursor-pointer"
+                                class="mt-0.5 w-4 h-4 text-emerald-600 rounded border-gray-300 dark:border-gray-600 focus:ring-emerald-500 cursor-pointer"
                             >
-                            <span class="text-sm font-medium text-gray-700 dark:text-gray-200">
-                                Save card for future visits
+                            <span class="text-sm text-gray-700 dark:text-gray-200">
+                                <span class="font-medium">Save card for future visits</span><br>
+                                <span class="text-xs text-gray-500 dark:text-gray-400">Only applies when you pay with a new Stripe card.</span>
                             </span>
                         </label>
                     </div>

@@ -151,8 +151,9 @@
                     <h2 class="text-4xl md:text-5xl font-heading font-bold mb-6 text-gray-900 dark:text-white relative z-10">Stay in the Loop</h2>
                     <p class="text-lg text-gray-600 dark:text-gray-400 mb-8 max-w-xl mx-auto relative z-10">Join our community for exclusive offers, early access to new blends, and insider coffee tips.</p>
                     
-                    <form class="max-w-md mx-auto relative z-10 flex flex-col sm:flex-row gap-3">
-                        <input type="email" placeholder="Enter your email" class="w-full px-6 py-4 rounded-full bg-white/50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white dark:focus:bg-gray-800 transition-all text-gray-800 dark:text-white placeholder-gray-500 shadow-sm backdrop-blur-sm">
+                    <form method="POST" action="{{ route('newsletter.subscribe') }}" class="max-w-md mx-auto relative z-10 flex flex-col sm:flex-row gap-3">
+                        @csrf
+                        <input type="email" name="email" placeholder="Enter your email" class="w-full px-6 py-4 rounded-full bg-white/50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white dark:focus:bg-gray-800 transition-all text-gray-800 dark:text-white placeholder-gray-500 shadow-sm backdrop-blur-sm">
                         <button type="submit" class="px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-full font-medium shadow-lg hover:shadow-xl transition-all duration-300 whitespace-nowrap hover:-translate-y-0.5">
                             Subscribe
                         </button>

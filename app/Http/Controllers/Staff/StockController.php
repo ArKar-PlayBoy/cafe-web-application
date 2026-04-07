@@ -13,6 +13,8 @@ class StockController extends Controller
 {
     public function index()
     {
+        $this->authorize('stock.view');
+
         return view('staff.stock.index', [
             'stockItems' => StockItem::orderBy('name')->get(),
             'alerts' => StockService::getUnreadAlerts(),
@@ -84,11 +86,15 @@ class StockController extends Controller
 
     public function alerts()
     {
+        $this->authorize('stock.view');
+
         return view('staff.stock.alerts', ['alerts' => StockService::getUnreadAlerts()]);
     }
 
     public function rejectOrder(Request $request, Order $order)
     {
+        $this->authorize('orders.cancel');
+
         $request->validate([
             'reason' => 'required|string|max:255',
             'note' => 'nullable|string|max:500',

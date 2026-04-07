@@ -19,16 +19,16 @@
 
         <div class="flex gap-2 mb-6">
             <a href="{{ route('staff.kitchen.index') }}" class="px-4 py-2 rounded-lg {{ $filter === 'all' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600' }}">
-                All ({{ \App\Models\KitchenTicket::whereHas('order', fn($q) => $q->whereIn('status', ['pending', 'preparing', 'ready']))->count() }})
+                All ({{ $total ?? 0 }})
             </a>
             <a href="{{ route('staff.kitchen.index', ['filter' => 'new']) }}" class="px-4 py-2 rounded-lg {{ $filter === 'new' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600' }}">
-                New ({{ \App\Models\KitchenTicket::where('status', 'new')->whereHas('order', fn($q) => $q->whereIn('status', ['pending', 'preparing', 'ready']))->count() }})
+                New ({{ $statusCounts['new'] ?? 0 }})
             </a>
             <a href="{{ route('staff.kitchen.index', ['filter' => 'preparing']) }}" class="px-4 py-2 rounded-lg {{ $filter === 'preparing' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600' }}">
-                Preparing ({{ \App\Models\KitchenTicket::where('status', 'preparing')->whereHas('order', fn($q) => $q->whereIn('status', ['pending', 'preparing', 'ready']))->count() }})
+                Preparing ({{ $statusCounts['preparing'] ?? 0 }})
             </a>
             <a href="{{ route('staff.kitchen.index', ['filter' => 'ready']) }}" class="px-4 py-2 rounded-lg {{ $filter === 'ready' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600' }}">
-                Ready ({{ \App\Models\KitchenTicket::where('status', 'ready')->whereHas('order', fn($q) => $q->whereIn('status', ['pending', 'preparing', 'ready']))->count() }})
+                Ready ({{ $statusCounts['ready'] ?? 0 }})
             </a>
         </div>
 
@@ -42,7 +42,13 @@
         @else
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="kitchenTickets">
                 @foreach($tickets as $ticket)
-                    <div class="ticket-card bg-gray-800 rounded-lg p-4 border-l-4 {{ $ticket->status === 'new' ? 'border-green-500' : ($ticket->status === 'preparing' ? 'border-yellow-500' : 'border-blue-500') }}" data-ticket-id="{{ $ticket->id }}">
+                    <div
+                        class="ticket-card bg-gray-800 rounded-lg p-4 border-l-4 {{ $ticket->status === 'new' ? 'border-green-500' : ($ticket->status === 'preparing' ? 'border-yellow-500' : 'border-blue-500') }}"
+                        data-ticket-id="{{ $ticket->id }}"
+                        data-order-id="{{ $ticket->order->id }}"
+                        data-order-time="{{ $ticket->created_at->format('H:i') }}"
+                        data-customer-name="{{ $ticket->order->user->name ?? 'Guest' }}"
+                    >
                         <div class="flex justify-between items-start mb-3">
                             <div>
                                 <span class="text-2xl font-bold">#{{ $ticket->order->id }}</span>
@@ -50,21 +56,18 @@
                                     {{ ucfirst($ticket->status) }}
                                 </span>
                             </div>
-                            <div class="text-sm text-gray-400">
+                            <div class="text-sm text-gray-400" data-ticket-time>
                                 {{ $ticket->created_at->format('H:i') }}
                             </div>
                         </div>
 
                         <div class="mb-3">
-                            <div class="text-sm text-gray-400 mb-1">Customer: {{ $ticket->order->user->name ?? 'Guest' }}</div>
-                            @if($ticket->order->reservation && $ticket->order->reservation->table)
-                                <div class="text-sm text-gray-400">Table: {{ $ticket->order->reservation->table->table_number }}</div>
-                            @endif
+                            <div class="text-sm text-gray-400 mb-1" data-ticket-customer>Customer: {{ $ticket->order->user->name ?? 'Guest' }}</div>
                         </div>
 
-                        <div class="border-t border-gray-700 pt-3 mb-3">
+                        <div class="border-t border-gray-700 pt-3 mb-3" data-print-items>
                             @foreach($ticket->order->items as $item)
-                                <div class="flex justify-between items-center py-1">
+                                <div class="ticket-item flex justify-between items-center py-1">
                                     <span class="font-semibold">{{ $item->quantity }}x {{ $item->menuItem->name ?? 'Unknown' }}</span>
                                 </div>
                             @endforeach
@@ -72,7 +75,7 @@
 
                         @foreach($ticket->order->items as $item)
                             @if($item->notes)
-                            <div class="bg-orange-900/50 border border-orange-700 rounded p-2 mb-2 text-sm">
+                            <div class="bg-orange-900/50 border border-orange-700 rounded p-2 mb-2 text-sm" data-print-note>
                                 <strong>{{ $item->menuItem->name ?? 'Item' }}:</strong> {{ $item->notes }}
                             </div>
                             @endif
@@ -171,51 +174,113 @@ function checkNewOrders() {
 function printTicket(ticketId) {
     const ticket = document.querySelector(`[data-ticket-id="${ticketId}"]`);
     if (!ticket) return;
-    
-    const orderId = ticket.querySelector('.text-2xl').textContent.replace('#', '');
-    const time = ticket.querySelector('.text-sm').textContent;
-    const customerName = ticket.querySelector('.text-gray-400').textContent.replace('Customer: ', '').replace('Table: ', '').split('\n')[0];
-    const itemsHtml = ticket.querySelector('.border-t').innerHTML;
-    const noteEl = ticket.querySelector('.bg-orange-900');
-    const noteHtml = noteEl ? '<div class="note"><div class="note-label">Note:</div>' + noteEl.textContent.replace('Note:', '').trim() + '</div>' : '';
-    
+
+    const orderId = ticket.dataset.orderId || '';
+    const customerName = ticket.dataset.customerName || 'Guest';
+    const time = ticket.dataset.orderTime || '';
+
+    const items = [];
+    ticket.querySelectorAll('[data-print-items] .ticket-item').forEach((el) => {
+        const text = el.textContent.trim();
+        if (text) items.push(text);
+    });
+
+    const notes = [];
+    ticket.querySelectorAll('[data-print-note]').forEach((el) => {
+        const text = el.textContent.trim();
+        if (text) notes.push(text);
+    });
+
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Order #${orderId}</title>
-            <link rel="stylesheet" href="${window.location.origin}/css/print.css">
-        </head>
-        <body>
-            <div class="ticket">
-                <div class="header">
-                    <div class="restaurant-name">Cafe Order</div>
-                    <div class="order-id">Order #${orderId}</div>
-                    <div class="order-time">${new Date().toLocaleString()}</div>
-                </div>
-                <div class="info">
-                    <div class="info-row">
-                        <span class="label">Customer:</span> ${customerName}
-                    </div>
-                    <div class="info-row">
-                        <span class="label">Time:</span> ${time}
-                    </div>
-                </div>
-                <div class="items">
-                    <div class="items-header">Items</div>
-                    ${itemsHtml}
-                </div>
-                ${noteHtml}
-                <div class="footer">
-                    Thank you for your order!
-                </div>
-            </div>
-        </body>
-        </html>
-    `);
-    printWindow.document.close();
+    if (!printWindow) return;
+
+    const doc = printWindow.document;
+    doc.open();
+
+    const html = doc.createElement('html');
+    const head = doc.createElement('head');
+    const title = doc.createElement('title');
+    title.textContent = 'Order #' + orderId;
+    head.appendChild(title);
+    const stylesheet = doc.createElement('link');
+    stylesheet.rel = 'stylesheet';
+    stylesheet.href = window.location.origin + '/css/print.css';
+    head.appendChild(stylesheet);
+    html.appendChild(head);
+
+    const body = doc.createElement('body');
+    const ticketDiv = doc.createElement('div');
+    ticketDiv.className = 'ticket';
+
+    const header = doc.createElement('div');
+    header.className = 'header';
+    appendTextDiv(header, 'restaurant-name', 'Cafe Order');
+    appendTextDiv(header, 'order-id', 'Order #' + orderId);
+    appendTextDiv(header, 'order-time', new Date().toLocaleString());
+    ticketDiv.appendChild(header);
+
+    const info = doc.createElement('div');
+    info.className = 'info';
+    appendInfoRow(info, 'Customer:', customerName);
+    appendInfoRow(info, 'Time:', time);
+    ticketDiv.appendChild(info);
+
+    const itemsDiv = doc.createElement('div');
+    itemsDiv.className = 'items';
+    const itemsHeader = doc.createElement('div');
+    itemsHeader.className = 'items-header';
+    itemsHeader.textContent = 'Items';
+    itemsDiv.appendChild(itemsHeader);
+    items.forEach(itemText => {
+        const itemDiv = doc.createElement('div');
+        itemDiv.className = 'item';
+        itemDiv.textContent = itemText;
+        itemsDiv.appendChild(itemDiv);
+    });
+    ticketDiv.appendChild(itemsDiv);
+
+    notes.forEach(noteText => {
+        const noteDiv = doc.createElement('div');
+        noteDiv.className = 'note';
+        const noteLabel = doc.createElement('div');
+        noteLabel.className = 'note-label';
+        noteLabel.textContent = 'Note:';
+        noteDiv.appendChild(noteLabel);
+        const noteContent = doc.createElement('div');
+        noteContent.textContent = noteText;
+        noteDiv.appendChild(noteContent);
+        ticketDiv.appendChild(noteDiv);
+    });
+
+    const footer = doc.createElement('div');
+    footer.className = 'footer';
+    footer.textContent = 'Thank you for your order!';
+    ticketDiv.appendChild(footer);
+
+    body.appendChild(ticketDiv);
+    html.appendChild(body);
+    doc.write('<!DOCTYPE html>');
+    doc.documentElement.replaceWith(doc.importNode(html, true));
+    doc.close();
     printWindow.print();
+}
+
+function appendTextDiv(parent, className, text) {
+    const div = document.createElement('div');
+    div.className = className;
+    div.textContent = text;
+    parent.appendChild(div);
+}
+
+function appendInfoRow(parent, label, value) {
+    const row = document.createElement('div');
+    row.className = 'info-row';
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'label';
+    labelSpan.textContent = label;
+    row.appendChild(labelSpan);
+    row.appendChild(document.createTextNode(' ' + value));
+    parent.appendChild(row);
 }
 
 // Request notification permission on page load

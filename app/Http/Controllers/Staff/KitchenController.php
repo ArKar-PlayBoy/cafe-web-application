@@ -34,7 +34,17 @@ class KitchenController extends Controller
 
         $tickets = $query->get();
 
-        return view('staff.kitchen.index', compact('tickets', 'filter'));
+        $statusCounts = KitchenTicket::whereHas('order', function ($q) {
+                $q->whereIn('status', ['confirmed', 'pending', 'preparing', 'ready']);
+            })
+            ->selectRaw('status, count(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status')
+            ->toArray();
+
+        $total = array_sum($statusCounts);
+
+        return view('staff.kitchen.index', compact('tickets', 'filter', 'statusCounts', 'total'));
     }
 
     public function updateStatus(Request $request, KitchenTicket $ticket)

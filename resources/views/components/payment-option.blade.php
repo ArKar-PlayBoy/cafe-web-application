@@ -18,7 +18,7 @@
     <div class="relative flex items-center mr-4">
         <input 
             type="radio" 
-            name="payment_method" 
+            name="payment_method_radio" 
             value="{{ $value }}" 
             class="w-4 h-4 text-emerald-600 dark:text-emerald-400 border-gray-300 dark:border-gray-600 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:ring-offset-0 transition-all"
             {{ $checked ? 'checked' : '' }}

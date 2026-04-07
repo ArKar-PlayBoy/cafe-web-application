@@ -23,7 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         // Append ban check to authenticated web routes
-        $middleware->appendToGroup('web', [
+        $middleware->appendToGroup('auth', [
             App\Http\Middleware\EnsureUserIsNotBanned::class,
         ]);
 

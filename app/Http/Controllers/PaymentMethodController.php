@@ -34,7 +34,38 @@ class PaymentMethodController extends Controller
         return view('customer.payment-methods.index', [
             'paymentMethods' => $paymentMethods,
             'hasStripeCustomer' => true,
+            'defaultCardId' => $user->default_payment_method_id,
         ]);
+    }
+
+    /**
+     * Set a payment method as default
+     */
+    public function setDefault(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'payment_method_id' => 'required|string',
+        ]);
+
+        $user = auth()->user();
+
+        if (! $user->stripe_customer_id) {
+            return redirect()->route('payment-methods.index')
+                ->with('error', 'No payment methods found.');
+        }
+
+        // Verify ownership of the payment method
+        $paymentMethods = $this->paymentService->listSavedCards($user->stripe_customer_id);
+        $validIds = array_column($paymentMethods, 'id');
+
+        if (! in_array($request->payment_method_id, $validIds)) {
+            abort(403, 'Invalid payment method.');
+        }
+
+        $user->update(['default_payment_method_id' => $request->payment_method_id]);
+
+        return redirect()->route('payment-methods.index')
+            ->with('success', 'Default payment method updated.');
     }
 
     /**
@@ -51,6 +82,11 @@ class PaymentMethodController extends Controller
         if (! $user->stripe_customer_id) {
             return redirect()->route('payment-methods.index')
                 ->with('error', 'No payment methods found.');
+        }
+
+        // If deleting the default card, clear the default
+        if ($user->default_payment_method_id === $request->payment_method_id) {
+            $user->update(['default_payment_method_id' => null]);
         }
 
         try {

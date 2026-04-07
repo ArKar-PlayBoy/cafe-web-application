@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentMethodController;
 use App\Http\Controllers\ProfileController;
@@ -34,6 +35,8 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
+Route::post('/newsletter/subscribe', [NewsletterController::class, 'subscribe'])->name('newsletter.subscribe');
+
 // Stripe webhook - NO auth, but signature-verified inside the controller
 Route::post('/webhook/stripe', [CheckoutController::class, 'handleWebhook'])->name('webhook.stripe');
 
@@ -48,12 +51,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
 
     // Payment verification MUST be auth-protected (IDOR prevention)
-    Route::get('/checkout/verify', [CheckoutController::class, 'verifyPayment'])->name('checkout.verify')->middleware('throttle:20,1');
+    Route::get('/checkout/verify', [CheckoutController::class, 'verifyPayment'])->name('checkout.verify')->middleware('throttle:payment_api');
     
     // Stripe Payment Intents (for saved card functionality)
-    Route::post('/checkout/create-payment-intent', [CheckoutController::class, 'createPaymentIntent'])->name('checkout.create-payment-intent')->middleware('throttle:20,1');
-    Route::post('/checkout/confirm-payment', [CheckoutController::class, 'confirmPayment'])->name('checkout.confirm-payment')->middleware('throttle:20,1');
-    Route::get('/checkout/saved-cards', [CheckoutController::class, 'loadSavedCards'])->name('checkout.saved-cards')->middleware('throttle:20,1');
+    Route::post('/checkout/create-payment-intent', [CheckoutController::class, 'createPaymentIntent'])->name('checkout.create-payment-intent')->middleware('throttle:payment_api');
+    Route::post('/checkout/create-setup-intent', [CheckoutController::class, 'createSetupIntent'])->name('checkout.create-setup-intent')->middleware('throttle:payment_api');
+    Route::post('/checkout/confirm-payment', [CheckoutController::class, 'confirmPayment'])->name('checkout.confirm-payment')->middleware('throttle:payment_api');
+    Route::get('/checkout/3ds-verify', [CheckoutController::class, 'show3dsVerify'])->name('checkout.3ds-verify')->middleware('throttle:payment_api');
+    Route::get('/checkout/saved-cards', [CheckoutController::class, 'loadSavedCards'])->name('checkout.saved-cards')->middleware('throttle:payment_api');
     Route::get('/orders', [OrderController::class, 'index'])->name('orders');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::post('/orders/{order}/upload-payment', [OrderController::class, 'uploadPayment'])
@@ -72,7 +77,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Payment Methods
     Route::get('/payment-methods', [PaymentMethodController::class, 'index'])->name('payment-methods.index');
+    Route::post('/payment-methods/set-default', [PaymentMethodController::class, 'setDefault'])->name('payment-methods.set-default');
     Route::delete('/payment-methods', [PaymentMethodController::class, 'destroy'])->name('payment-methods.destroy');
+
+    // Connected Accounts (OAuth)
+    Route::get('/settings/connected-accounts', [App\Http\Controllers\User\SocialLinkController::class, 'index'])
+        ->name('user.social.accounts');
+    Route::delete('/settings/social/{provider}', [App\Http\Controllers\User\SocialLinkController::class, 'unlink'])
+        ->middleware('throttle:5,1')
+        ->name('user.social.unlink');
 });
 
 Route::prefix('admin')->name('admin.')->group(function () {

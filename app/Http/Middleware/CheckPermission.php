@@ -17,21 +17,15 @@ class CheckPermission
      */
     public function handle(Request $request, Closure $next, string $permission): Response
     {
-        // Determine which guard to use based on the route prefix
-        $guard = null;
-        if ($request->is('admin/*')) {
-            $guard = 'admin';
-        } elseif ($request->is('staff/*')) {
-            $guard = 'staff';
-        } else {
-            $guard = 'web'; // default to web guard for customer routes
-        }
+        $guard = match (true) {
+            $request->is('admin/*') => 'admin',
+            $request->is('staff/*') => 'staff',
+            default => 'web',
+        };
 
-        /** @var User|null $user */
         $user = Auth::guard($guard)->user();
 
-        if (! $user || ! $user->hasPermission($permission)) {
-            // Redirect to appropriate login based on guard
+        if (! $user) {
             $loginRoute = match ($guard) {
                 'admin' => 'admin.login',
                 'staff' => 'staff.login',
@@ -40,6 +34,17 @@ class CheckPermission
 
             return redirect()->route($loginRoute)
                 ->with('error', 'Please login to access this area.');
+        }
+
+        if (! $user->hasPermission($permission)) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You do not have the required permission.',
+                ], Response::HTTP_FORBIDDEN);
+            }
+
+            abort(Response::HTTP_FORBIDDEN, 'You do not have the required permission.');
         }
 
         return $next($request);

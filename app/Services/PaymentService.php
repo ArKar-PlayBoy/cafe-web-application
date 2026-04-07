@@ -51,11 +51,11 @@ class PaymentService
             ],
         ];
 
-        // If saving card, use customer parameter directly (for Checkout Sessions)
-        // Cards are automatically saved to the customer after successful payment
-        // Note: setup_future_usage is NOT valid for Checkout Sessions, only for Payment Intents
+        // If saving card, use customer parameter directly and set setup_future_usage
+        // This tells Stripe to save the card for future use after successful payment
         if ($saveCard && $customerId) {
             $sessionParams['customer'] = $customerId;
+            $sessionParams['setup_future_usage'] = 'off_session';
         } else {
             $sessionParams['customer_email'] = $order->user->email ?? null;
         }
@@ -115,7 +115,7 @@ class PaymentService
 
     /**
      * Verify Stripe PaymentIntent.
-     * Returns status, id, and metadata for binding verification.
+     * Returns status, id, amount_total (dollars), amount_cents (raw), and metadata for binding verification.
      */
     public function verifyPaymentIntent(string $paymentIntentId): array
     {
@@ -125,6 +125,9 @@ class PaymentService
             return [
                 'status' => $paymentIntent->status,
                 'payment_intent' => $paymentIntent->id,
+                'amount_total' => $paymentIntent->amount / 100,
+                'amount_cents' => $paymentIntent->amount,
+                'currency' => $paymentIntent->currency,
                 'metadata_order_id' => $paymentIntent->metadata->order_id ?? null,
                 'metadata_user_id' => $paymentIntent->metadata->user_id ?? null,
             ];
@@ -192,6 +195,13 @@ class PaymentService
             // Calculate amount in cents
             $amount = (int) ($order->total * 100);
 
+            Log::info('PaymentIntent - amount calculation', [
+                'order_id' => $order->id,
+                'order_total' => $order->total,
+                'amount_cents' => $amount,
+                'amount_dollars' => $amount / 100,
+            ]);
+
             // Create PaymentIntent with setup_future_usage to save the card
             $params = [
                 'amount' => $amount,
@@ -239,24 +249,79 @@ class PaymentService
     }
 
     /**
+     * Create a SetupIntent for saving a card without immediate payment
+     */
+    public function createSetupIntent(string $customerId): array
+    {
+        try {
+            $setupIntent = \Stripe\SetupIntent::create([
+                'customer' => $customerId,
+                'payment_method_types' => ['card'],
+            ]);
+
+            Log::info('SetupIntent created', [
+                'customer_id' => $customerId,
+                'setup_intent_id' => $setupIntent->id,
+            ]);
+
+            return [
+                'client_secret' => $setupIntent->client_secret,
+                'setup_intent_id' => $setupIntent->id,
+            ];
+        } catch (\Stripe\Exception\ApiErrorException $e) {
+            Log::error('SetupIntent creation failed', [
+                'error' => $e->getMessage(),
+                'customer_id' => $customerId,
+            ]);
+
+            return [
+                'error' => 'Failed to create setup: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
      * Handle webhook events from Stripe.
      * Verifies the Stripe-Signature header using the official SDK.
+     * Verification bypass is allowed only in local/testing when all of the following are true:
+     * - skip_webhook_verification is enabled
+     * - webhook secret is not configured
+     * - no signature header is present
      */
     public function handleWebhook(string $payload, ?string $signature): array
     {
         $webhookSecret = config('stripe.webhook_secret');
-        $isLocal = app()->environment('local');
+        $isLocalOrTesting = in_array(app()->environment(), ['local', 'testing'], true);
+        $skipFlag = config('stripe.skip_webhook_verification', false);
+        $secretNotConfigured = is_null($webhookSecret) || $webhookSecret === '' || $webhookSecret === 'whsec_your_webhook_secret_here';
+        $hasSignature = ! empty($signature);
 
-        // --- Signature Verification ---
-        if (empty($webhookSecret) || $webhookSecret === 'whsec_your_webhook_secret_here') {
-            if (! $isLocal) {
-                Log::error('Stripe webhook secret is not configured outside local environment.');
+        // Strict bypass: only when ALL are true:
+        // 1. local/testing environment
+        // 2. explicit skip flag is true
+        // 3. no signature header present
+        // 4. webhook secret is not configured
+        $allowBypass = $isLocalOrTesting && $skipFlag && ! $hasSignature && $secretNotConfigured;
+
+        if ($allowBypass) {
+            Log::info('Stripe webhook: skipping signature verification (local/testing bypass, no signature present)');
+
+            try {
+                $event = json_decode($payload, true);
+            } catch (\UnexpectedValueException $e) {
+                Log::warning('Invalid webhook payload: '.$e->getMessage());
+                throw new \Exception('Invalid webhook payload.');
+            }
+        } else {
+            if (! $hasSignature && ! $secretNotConfigured) {
+                throw new \Exception('Invalid webhook signature.');
+            }
+
+            if ($secretNotConfigured) {
+                Log::error('Stripe webhook secret is not configured. Webhook processing aborted.');
                 throw new \Exception('Webhook secret not configured.');
             }
 
-            Log::warning('Stripe webhook secret is not configured. Allowing unsigned webhook only in local environment.');
-            $event = json_decode($payload, true);
-        } else {
             try {
                 $stripeEvent = Webhook::constructEvent($payload, $signature, $webhookSecret);
                 $event = json_decode(json_encode($stripeEvent), true);
@@ -276,6 +341,9 @@ class PaymentService
         switch ($event['type']) {
             case 'checkout.session.completed':
                 return $this->handleCheckoutCompleted($event['data']['object']);
+
+            case 'setup_intent.succeeded':
+                return $this->handleSetupIntentSucceeded($event['data']['object']);
 
             case 'payment_intent.succeeded':
                 return $this->handlePaymentSucceeded($event['data']['object']);
@@ -336,6 +404,22 @@ class PaymentService
         ]);
 
         return ['status' => 'success', 'order_id' => $orderId];
+    }
+
+    /**
+     * Handle setup intent succeeded (card saved)
+     */
+    private function handleSetupIntentSucceeded(array $setupIntent): array
+    {
+        $customerId = $setupIntent['customer'] ?? null;
+
+        Log::info('SetupIntent succeeded - card saved', [
+            'setup_intent_id' => $setupIntent['id'],
+            'customer_id' => $customerId,
+            'payment_method' => $setupIntent['payment_method'] ?? null,
+        ]);
+
+        return ['status' => 'success', 'customer_id' => $customerId];
     }
 
     /**
@@ -538,6 +622,13 @@ class PaymentService
         $customerId = $this->getOrCreateCustomer($order->user);
         $amount = (int) round($order->total * 100);
 
+        Log::info('Saved card payment - amount calculation', [
+            'order_id' => $order->id,
+            'order_total' => $order->total,
+            'amount_cents' => $amount,
+            'amount_dollars' => $amount / 100,
+        ]);
+
         try {
             $paymentMethod = $this->retrievePaymentMethod($paymentMethodId);
             $paymentMethodCustomerId = $this->extractPaymentMethodCustomerId($paymentMethod);
@@ -562,7 +653,7 @@ class PaymentService
                 'customer' => $customerId,
                 'payment_method' => $paymentMethodId,
                 'confirm' => true,
-                'off_session' => false,
+                'off_session' => true,
                 'metadata' => [
                     'order_id' => (string) $order->id,
                     'user_id' => (string) $order->user_id,

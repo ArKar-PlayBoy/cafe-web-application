@@ -24,7 +24,7 @@ class UserController extends Controller
 
     public function create()
     {
-        $this->authorize('users.manage_staff');
+        $this->authorize('users.create');
 
         $currentUser = auth('admin')->user();
 
@@ -41,7 +41,7 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorize('users.manage_staff');
+        $this->authorize('users.create');
 
         $request->validate([
             'name' => 'required|string|max:255',
@@ -89,7 +89,7 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
-        $this->authorize('users.manage_staff');
+        $this->authorize('users.edit');
 
         $currentUser = auth('admin')->user();
 
@@ -115,7 +115,7 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
-        $this->authorize('users.manage_staff');
+        $this->authorize('users.edit');
 
         $currentUser = auth('admin')->user();
 
@@ -193,7 +193,7 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
-        $this->authorize('users.manage_staff');
+        $this->authorize('users.delete');
 
         $currentUser = auth('admin')->user();
 

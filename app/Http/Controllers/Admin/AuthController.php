@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BannedEmail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -27,7 +29,10 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
-        // Rate limiting: max 5 attempts per minute per email+IP
+        $normalizedEmail = BannedEmail::normalizeEmail((string) $request->input('email'));
+        $request->merge(['email' => $normalizedEmail]);
+        $credentials['email'] = $normalizedEmail;
+
         $throttleKey = Str::lower($request->input('email')).'|'.$request->ip();
 
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
@@ -40,10 +45,11 @@ class AuthController extends Controller
             ]);
         }
 
-        $user = \App\Models\User::where('email', $request->email)->first();
+        $user = \App\Models\User::whereRaw('LOWER(email) = ?', [$normalizedEmail])->first();
 
         if (! $user || ! $user->isAdmin()) {
             RateLimiter::hit($throttleKey);
+            Hash::make($request->password);
 
             return back()->withErrors([
                 'email' => 'The provided credentials do not match our records.',
@@ -54,6 +60,8 @@ class AuthController extends Controller
             if ($user->ban_reason) {
                 $request->session()->flash('ban_reason', $user->ban_reason);
             }
+
+            RateLimiter::hit($throttleKey);
 
             return back()->withErrors([
                 'email' => 'Your account has been banned. Contact support.',

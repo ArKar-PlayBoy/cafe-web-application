@@ -14,6 +14,7 @@ return [
     'key' => env('STRIPE_KEY'),
     'secret' => env('STRIPE_SECRET'),
     'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    'publishable' => env('STRIPE_KEY'),
 
     /*
     |--------------------------------------------------------------------------
@@ -31,6 +32,7 @@ return [
 
     'currency' => env('STRIPE_CURRENCY', 'usd'),
     'currency_symbol' => env('STRIPE_CURRENCY_SYMBOL', '$'),
+    'skip_webhook_verification' => env('STRIPE_SKIP_WEBHOOK_VERIFICATION', false),
 
     /*
     |--------------------------------------------------------------------------

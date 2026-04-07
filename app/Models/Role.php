@@ -34,6 +34,41 @@ class Role extends Model
     }
 
     /**
+     * Get the customer role (cached)
+     */
+    public static function lookupCustomerRole(): ?Role
+    {
+        return static::getCached('customer');
+    }
+
+    /**
+     * Get a role by slug with caching
+     */
+    private static function getCached(string $slug): ?Role
+    {
+        $cacheKey = "role:{$slug}";
+        
+        return cache()->remember($cacheKey, 3600, function () use ($slug) {
+            return static::where('slug', $slug)->first();
+        });
+    }
+
+    /**
+     * Clear role cache (useful for testing)
+     */
+    public static function clearCache(string $slug = null): void
+    {
+        if ($slug) {
+            cache()->forget("role:{$slug}");
+        } else {
+            // Clear all role caches
+            foreach (static::pluck('slug') as $roleSlug) {
+                cache()->forget("role:{$roleSlug}");
+            }
+        }
+    }
+
+    /**
      * Check if role is super admin
      */
     public function isSuperAdmin(): bool

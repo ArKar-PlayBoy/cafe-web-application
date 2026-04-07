@@ -28,11 +28,15 @@
             </div>
 
             <div class="mt-6">
+                @can('menu.edit')
                 <a href="{{ route('admin.menu.edit', $menu->id) }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mr-2">Edit</a>
+                @endcan
+                @can('menu.delete')
                 <form action="{{ route('admin.menu.destroy', $menu->id) }}" method="POST" class="inline">
                     @csrf @method('DELETE')
                     <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700" onclick="return confirm('Are you sure?')">Delete</button>
                 </form>
+                @endcan
             </div>
         </div>
     </div>

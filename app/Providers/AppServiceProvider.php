@@ -12,13 +12,17 @@ use App\Listeners\ClearUserAndOldRolePermissionsCache;
 use App\Listeners\ClearUserPermissionsCache;
 use App\Listeners\SendOrderConfirmation;
 use App\Listeners\SendOrderStatusUpdate;
+use App\Models\Cart;
 use App\Models\Category;
 use App\Models\MenuItem;
 use App\Models\User;
 use App\Services\PermissionService;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Cache\RateLimiting\Limit;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -35,6 +39,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->configureRateLimiting();
+
         Event::listen(
             OrderCreated::class,
             SendOrderConfirmation::class
@@ -65,6 +71,25 @@ class AppServiceProvider extends ServiceProvider
 
         // Register model-specific Gates
         $this->registerModelGates();
+
+        // Share navbar cart count once per request for the customer layout.
+        View::composer('layouts.app', function ($view) {
+            $cartCount = 0;
+
+            if (auth()->check()) {
+                $cartCount = (int) Cart::where('user_id', auth()->id())->sum('quantity');
+            }
+
+            $view->with('cartCount', $cartCount);
+        });
+    }
+
+    protected function configureRateLimiting(): void
+    {
+        RateLimiter::for('payment_api', function ($request) {
+            $userId = $request->user()?->id ?? $request->ip();
+            return Limit::perMinute(20)->by($userId);
+        });
     }
 
     /**

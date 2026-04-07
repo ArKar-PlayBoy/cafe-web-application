@@ -68,16 +68,30 @@
                     <div>
                         <p class="font-medium">{{ ucfirst($pm['brand']) }} **** **** **** {{ $pm['last4'] }}</p>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Expires {{ $pm['exp_month'] }}/{{ $pm['exp_year'] }}</p>
+                        @if(isset($defaultCardId) && $defaultCardId === $pm['id'])
+                        <span class="inline-block mt-1 text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded">Default</span>
+                        @endif
                     </div>
                 </div>
-                <form action="{{ route('payment-methods.destroy') }}" method="POST" onsubmit="return confirm('Are you sure you want to remove this card?')">
-                    @csrf
-                    @method('DELETE')
-                    <input type="hidden" name="payment_method_id" value="{{ $pm['id'] }}">
-                    <button type="submit" class="text-red-600 hover:text-red-700 text-sm font-medium px-3 py-1">
-                        Remove
-                    </button>
-                </form>
+                <div class="flex items-center gap-2">
+                    @if(!isset($defaultCardId) || $defaultCardId !== $pm['id'])
+                    <form action="{{ route('payment-methods.set-default') }}" method="POST">
+                        @csrf
+                        <input type="hidden" name="payment_method_id" value="{{ $pm['id'] }}">
+                        <button type="submit" class="text-emerald-600 hover:text-emerald-700 text-sm font-medium px-3 py-1">
+                            Set as default
+                        </button>
+                    </form>
+                    @endif
+                    <form action="{{ route('payment-methods.destroy') }}" method="POST" onsubmit="return confirm('Are you sure you want to remove this card?')">
+                        @csrf
+                        @method('DELETE')
+                        <input type="hidden" name="payment_method_id" value="{{ $pm['id'] }}">
+                        <button type="submit" class="text-red-600 hover:text-red-700 text-sm font-medium px-3 py-1">
+                            Remove
+                        </button>
+                    </form>
+                </div>
             </div>
             @endforeach
         </div>

@@ -144,7 +144,7 @@
                     <td class="px-6 py-5 text-right flex flex-col items-end gap-2">
                         {{-- COD Delivery Actions --}}
                         @if($order->payment_method === 'cod' && $order->delivery_status !== 'delivered' && $order->delivery_status !== 'failed')
-                            @can('orders.update')
+                            @can('orders.manage')
                                 @if($order->delivery_status === 'pending' && $order->status === 'ready')
                                 <form action="{{ route('admin.orders.out-for-delivery', $order->id) }}" method="POST" class="w-full sm:w-auto">
                                     @csrf
@@ -154,12 +154,14 @@
                                 </form>
                                 @elseif($order->delivery_status === 'out_for_delivery')
                                 <div class="flex gap-2 w-full sm:w-auto">
+                                    @can('orders.verify_payment')
                                     <form action="{{ route('admin.orders.mark-delivered', $order->id) }}" method="POST">
                                         @csrf
                                         <button type="submit" class="px-3 py-1.5 w-full text-[11px] font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 hover:scale-105 active:scale-95 transition-all shadow-sm">
                                             Collect Cash
                                         </button>
                                     </form>
+                                    @endcan
                                     <button type="button" onclick="document.getElementById('codFailed{{ $order->id }}').showModal()" class="px-3 py-1.5 w-full text-[11px] font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-700 hover:scale-105 active:scale-95 transition-all shadow-sm">
                                         Failed
                                     </button>

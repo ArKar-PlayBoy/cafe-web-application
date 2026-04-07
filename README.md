@@ -138,6 +138,37 @@ Guard	Purpose	Route
 web	Customers	/login
 admin	Admin users	/admin/login
 staff	Staff users	/staff/login
+
+### 🔗 Google OAuth (Customer Login)
+
+Customers can use Google OAuth from `/login` and `/register`.
+Email/password authentication remains fully supported and is the primary fallback for users who do not want OAuth.
+
+#### Google Console Setup
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create an OAuth 2.0 Client ID (Web application type)
+3. Add authorized redirect URI: `${APP_URL}/auth/google/callback`
+4. Copy Client ID and Client Secret to your `.env`
+
+#### Environment Variables
+```
+GOOGLE_CLIENT_ID=your_client_id
+GOOGLE_CLIENT_SECRET=your_client_secret
+GOOGLE_REDIRECT_URI=${APP_URL}/auth/google/callback
+SOCIAL_GOOGLE_ENABLED=true
+```
+
+#### Important Notes
+- OAuth-created users cannot use email/password login until they set a password via **Forgot Password**
+- Email auto-linking: if a customer account already exists with the Google email, the accounts are linked automatically
+- Banned users are blocked from OAuth login with the same message as password login
+
+#### Ban-Bypass Hardening (OAuth + Email)
+- A canonical denylist table `banned_emails` is enforced across registration, OAuth callback, and password reset flows.
+- Email normalization is applied (`trim + lowercase`) before auth/ban checks to prevent case-based bypass.
+- If an identity is banned, switching between OAuth and email/password cannot bypass suspension.
+- Password reset requests for banned/denylisted identities are silently blocked (same generic success response).
+- Reset token consumption is re-validated against ban/denylist state, so previously issued tokens cannot reactivate banned identities.
 🛡 Authorization (RBAC)
 
 Role-based access control is implemented with 32+ permissions.
@@ -168,6 +199,8 @@ Permission changes
 Main tables:
 
 users
+banned_emails
+social_accounts
 roles
 permissions
 orders

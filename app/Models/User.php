@@ -7,6 +7,7 @@ use App\Events\UserRoleChanged;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Cache;
@@ -29,6 +30,9 @@ class User extends Authenticatable
         'password',
         'phone',
         'address',
+        'password_set_at',
+        'stripe_customer_id',
+        'default_payment_method_id',
     ];
 
     protected $hidden = [
@@ -38,12 +42,19 @@ class User extends Authenticatable
 
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'password_set_at' => 'datetime',
         'password' => 'hashed',
+        'is_banned' => 'boolean',
     ];
 
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class);
+    }
+
+    public function socialAccounts(): HasMany
+    {
+        return $this->hasMany(SocialAccount::class);
     }
 
     public function directPermissions(): BelongsToMany
@@ -174,6 +185,8 @@ class User extends Authenticatable
         $this->banned_at = now();
         $this->ban_reason = $reason;
         $this->save();
+
+        BannedEmail::blockEmail($this->email, $reason);
     }
 
     public function unban(): void
@@ -182,6 +195,8 @@ class User extends Authenticatable
         $this->banned_at = null;
         $this->ban_reason = null;
         $this->save();
+
+        BannedEmail::unblockEmail($this->email);
     }
 
     // Cache clearing
@@ -259,5 +274,10 @@ class User extends Authenticatable
         $this->last_order_date = $today;
 
         $this->save();
+    }
+
+    public function hasCustomPassword(): bool
+    {
+        return $this->password_set_at !== null;
     }
 }

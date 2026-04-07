@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Helpers\CsvSanitizer;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
@@ -120,13 +121,13 @@ class AuditLogController extends Controller
 
             foreach ($logs as $log) {
                 fputcsv($file, [
-                    $log->created_at->format('Y-m-d H:i:s'),
-                    $log->user ? $log->user->name : 'System',
-                    $log->action,
-                    $log->resource_type ?? 'N/A',
-                    $log->resource_id ?? 'N/A',
-                    $log->ip_address ?? 'N/A',
-                    $log->is_critical ? 'Yes' : 'No',
+                    CsvSanitizer::sanitizeCell($log->created_at->format('Y-m-d H:i:s')),
+                    CsvSanitizer::sanitizeCell($log->user ? $log->user->name : 'System'),
+                    CsvSanitizer::sanitizeCell($log->action),
+                    CsvSanitizer::sanitizeCell($log->resource_type ?? 'N/A'),
+                    CsvSanitizer::sanitizeCell($log->resource_id ?? 'N/A'),
+                    CsvSanitizer::sanitizeCell($log->ip_address ?? 'N/A'),
+                    CsvSanitizer::sanitizeCell($log->is_critical ? 'Yes' : 'No'),
                 ]);
             }
 

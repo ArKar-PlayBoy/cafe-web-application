@@ -21,8 +21,14 @@ class Order extends Model
         'payment_reference',
         'payment_screenshot',
         'payment_note',
+        'payment_verified_at',
+        'payment_verified_by',
+        'cancelled_by',
         'delivery_address',
         'delivery_phone',
+        'delivery_status',
+        'delivery_failed_reason',
+        'delivered_at',
     ];
 
     protected $casts = [
@@ -138,4 +144,5 @@ class Order extends Model
             'delivery_failed_reason' => $reason,
         ]);
     }
+    
 }
