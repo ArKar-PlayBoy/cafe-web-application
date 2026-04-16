@@ -70,6 +70,8 @@ class Order extends Model
         return $this->belongsTo(User::class, 'cancelled_by');
     }
 
+    
+
     public const PAYMENT_STATUS_PENDING = 'pending';
 
     public const PAYMENT_STATUS_AWAITING_VERIFICATION = 'awaiting_verification';

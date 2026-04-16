@@ -10,6 +10,7 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\Auth\VerifyEmailController;
+use App\Http\Middleware\EnsureUserIsNotBanned;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -48,7 +49,7 @@ Route::middleware('guest')->group(function () {
         ->name('auth.provider.callback');
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', EnsureUserIsNotBanned::class])->group(function () {
     Route::get('verify-email', EmailVerificationPromptController::class)
         ->name('verification.notice');
 

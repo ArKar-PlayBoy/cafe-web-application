@@ -22,11 +22,6 @@ return Application::configure(basePath: dirname(__DIR__))
             App\Http\Middleware\SecurityHeaders::class,
         ]);
 
-        // Append ban check to authenticated web routes
-        $middleware->appendToGroup('auth', [
-            App\Http\Middleware\EnsureUserIsNotBanned::class,
-        ]);
-
         // Middleware aliases
         $middleware->alias([
             'validate.payment.screenshot' => App\Http\Middleware\ValidatePaymentScreenshot::class,

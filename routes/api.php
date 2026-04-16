@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\MenuController as ApiMenuController;
 use App\Http\Controllers\Api\OrderController as ApiOrderController;
 use App\Services\RecommendationService;
+use App\Http\Middleware\EnsureUserIsNotBanned;
 use App\Services\WeatherService;
 use Illuminate\Support\Facades\Route;
 
@@ -16,7 +17,11 @@ use Illuminate\Support\Facades\Route;
 */
 
 // Public routes - Weather & Recommendations (rate-limited to prevent abuse)
-Route::middleware('throttle:60,1')->group(function () {
+Route::middleware([
+    'web',
+    'auth',
+    EnsureUserIsNotBanned::class,
+    'throttle:30,1'])->group(function () {
     Route::get('/weather', function (WeatherService $weatherService) {
         $lat = request('lat');
         $lon = request('lon');
@@ -55,7 +60,7 @@ Route::middleware('throttle:60,1')->group(function () {
 });
 
 // Protected routes - requires authentication (web guard) + ban check
-Route::middleware(['auth', \App\Http\Middleware\EnsureUserIsNotBanned::class])->group(function () {
+Route::middleware(['web', 'auth', EnsureUserIsNotBanned::class])->group(function () {
     // Orders
     Route::get('/orders', [ApiOrderController::class, 'index'])->name('api.orders');
     Route::get('/orders/{id}', [ApiOrderController::class, 'show'])->name('api.orders.show');

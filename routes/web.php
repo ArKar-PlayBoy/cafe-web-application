@@ -28,6 +28,7 @@ use App\Http\Controllers\Staff\OrderController as StaffOrderController;
 use App\Http\Controllers\Staff\ReservationController as StaffReservationController;
 use App\Http\Controllers\Staff\StockController as StaffStockController;
 use App\Http\Middleware\EnsureUserIsAdmin;
+use App\Http\Middleware\EnsureUserIsNotBanned;
 use App\Http\Middleware\EnsureUserIsStaff;
 use Illuminate\Support\Facades\Route;
 
@@ -40,7 +41,7 @@ Route::post('/newsletter/subscribe', [NewsletterController::class, 'subscribe'])
 // Stripe webhook - NO auth, but signature-verified inside the controller
 Route::post('/webhook/stripe', [CheckoutController::class, 'handleWebhook'])->name('webhook.stripe');
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', EnsureUserIsNotBanned::class, 'verified'])->group(function () {
     Route::get('/dashboard', fn () => view('customer.dashboard'))->name('dashboard');
     Route::get('/menu', [MenuController::class, 'index'])->name('menu');
     Route::get('/cart', [CartController::class, 'index'])->name('cart');

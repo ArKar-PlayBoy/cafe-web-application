@@ -46,7 +46,9 @@
                 <!-- Right Side (Desktop) -->
                 <div class="hidden md:flex items-center gap-2">
                     <!-- Weather Widget -->
+                    @auth
                     <x-weather-navbar />
+                    @endauth
                     
                     <!-- Theme Toggle -->
                     <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Toggle theme">

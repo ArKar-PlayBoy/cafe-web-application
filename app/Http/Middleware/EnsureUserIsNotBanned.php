@@ -16,12 +16,15 @@ class EnsureUserIsNotBanned
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $user = Auth::guard('web')->user();
+        $user = $request->user();
 
         if ($user && $user->isBanned()) {
-            Auth::guard('web')->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+            Auth::logout();
+
+            if ($request->hasSession()) {
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+            }
 
             if ($request->expectsJson()) {
                 return response()->json([
