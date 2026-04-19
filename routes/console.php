@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\CheckLowStockAlert;
 use App\Models\StockAlert;
 use App\Models\StockItem;
 use Illuminate\Foundation\Inspiring;

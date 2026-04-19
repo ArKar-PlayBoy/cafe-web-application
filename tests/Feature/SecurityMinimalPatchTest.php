@@ -6,8 +6,12 @@ use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\User;
 use App\Exceptions\PaymentMethodOwnershipException;
+use App\Jobs\ProcessPaymentWebhook;
 use App\Services\PaymentService;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
     Log::spy();
@@ -16,6 +20,15 @@ beforeEach(function () {
 afterEach(function () {
     \Mockery::close();
 });
+
+function stripeSignatureForPayload(string $payload, string $secret): string
+{
+    $timestamp = time();
+    $signedPayload = $timestamp.'.'.$payload;
+    $signature = hash_hmac('sha256', $signedPayload, $secret);
+
+    return "t={$timestamp},v1={$signature}";
+}
 
 it('does not mark stripe orders as verified when payment is not paid', function () {
     /** @var \Tests\TestCase $this */
@@ -181,7 +194,7 @@ it('returns forbidden when deleting a payment method that fails ownership check'
     $response->assertForbidden();
 });
 
-it('rejects unsigned webhooks outside local environment', function () {
+it('rejects webhooks when webhook secret not configured', function () {
     config(['stripe.webhook_secret' => null]);
 
     $service = new PaymentService();
@@ -829,9 +842,8 @@ it('allows confirmPayment when payment intent metadata matches and status is suc
 
 it('webhook checkout.session.completed sets status to preparing for pending order', function () {
     /** @var \Tests\TestCase $this */
-    $this->app['config']->set('stripe.webhook_secret', null);
-    $this->app->detectEnvironment(fn () => 'local');
-    $this->app['config']->set('stripe.skip_webhook_verification', true);
+    $secret = 'whsec_test_secret';
+    $this->app['config']->set('stripe.webhook_secret', $secret);
 
     $order = Order::factory()->create([
         'user_id' => User::factory()->create()->id,
@@ -840,17 +852,19 @@ it('webhook checkout.session.completed sets status to preparing for pending orde
         'status' => 'pending',
     ]);
 
+    $payload = json_encode([
+        'type' => 'checkout.session.completed',
+        'data' => ['object' => [
+            'id' => 'cs_webhook_test',
+            'payment_intent' => 'pi_webhook_test',
+            'metadata' => ['order_id' => (string) $order->id],
+        ]],
+    ]);
+
     $service = new PaymentService();
     $result = $service->handleWebhook(
-        json_encode([
-            'type' => 'checkout.session.completed',
-            'data' => ['object' => [
-                'id' => 'cs_webhook_test',
-                'payment_intent' => 'pi_webhook_test',
-                'metadata' => ['order_id' => (string) $order->id],
-            ]],
-        ]),
-        null
+        $payload,
+        stripeSignatureForPayload($payload, $secret)
     );
 
     $order->refresh();
@@ -861,9 +875,8 @@ it('webhook checkout.session.completed sets status to preparing for pending orde
 
 it('webhook payment_intent.succeeded sets status to preparing for pending order', function () {
     /** @var \Tests\TestCase $this */
-    $this->app['config']->set('stripe.webhook_secret', null);
-    $this->app->detectEnvironment(fn () => 'local');
-    $this->app['config']->set('stripe.skip_webhook_verification', true);
+    $secret = 'whsec_test_secret';
+    $this->app['config']->set('stripe.webhook_secret', $secret);
 
     $order = Order::factory()->create([
         'user_id' => User::factory()->create()->id,
@@ -872,16 +885,18 @@ it('webhook payment_intent.succeeded sets status to preparing for pending order'
         'status' => 'pending',
     ]);
 
+    $payload = json_encode([
+        'type' => 'payment_intent.succeeded',
+        'data' => ['object' => [
+            'id' => 'pi_webhook_succeeded',
+            'metadata' => ['order_id' => (string) $order->id],
+        ]],
+    ]);
+
     $service = new PaymentService();
     $result = $service->handleWebhook(
-        json_encode([
-            'type' => 'payment_intent.succeeded',
-            'data' => ['object' => [
-                'id' => 'pi_webhook_succeeded',
-                'metadata' => ['order_id' => (string) $order->id],
-            ]],
-        ]),
-        null
+        $payload,
+        stripeSignatureForPayload($payload, $secret)
     );
 
     $order->refresh();
@@ -892,9 +907,8 @@ it('webhook payment_intent.succeeded sets status to preparing for pending order'
 
 it('webhook does not downgrade preparing order to confirmed', function () {
     /** @var \Tests\TestCase $this */
-    $this->app['config']->set('stripe.webhook_secret', null);
-    $this->app->detectEnvironment(fn () => 'local');
-    $this->app['config']->set('stripe.skip_webhook_verification', true);
+    $secret = 'whsec_test_secret';
+    $this->app['config']->set('stripe.webhook_secret', $secret);
 
     $order = Order::factory()->create([
         'user_id' => User::factory()->create()->id,
@@ -903,17 +917,19 @@ it('webhook does not downgrade preparing order to confirmed', function () {
         'status' => 'preparing',
     ]);
 
+    $payload = json_encode([
+        'type' => 'checkout.session.completed',
+        'data' => ['object' => [
+            'id' => 'cs_late_webhook',
+            'payment_intent' => 'pi_late',
+            'metadata' => ['order_id' => (string) $order->id],
+        ]],
+    ]);
+
     $service = new PaymentService();
     $service->handleWebhook(
-        json_encode([
-            'type' => 'checkout.session.completed',
-            'data' => ['object' => [
-                'id' => 'cs_late_webhook',
-                'payment_intent' => 'pi_late',
-                'metadata' => ['order_id' => (string) $order->id],
-            ]],
-        ]),
-        null
+        $payload,
+        stripeSignatureForPayload($payload, $secret)
     );
 
     $order->refresh();
@@ -923,9 +939,8 @@ it('webhook does not downgrade preparing order to confirmed', function () {
 
 it('webhook does not change cancelled order status', function () {
     /** @var \Tests\TestCase $this */
-    $this->app['config']->set('stripe.webhook_secret', null);
-    $this->app->detectEnvironment(fn () => 'local');
-    $this->app['config']->set('stripe.skip_webhook_verification', true);
+    $secret = 'whsec_test_secret';
+    $this->app['config']->set('stripe.webhook_secret', $secret);
 
     $order = Order::factory()->create([
         'user_id' => User::factory()->create()->id,
@@ -934,17 +949,19 @@ it('webhook does not change cancelled order status', function () {
         'status' => 'cancelled',
     ]);
 
+    $payload = json_encode([
+        'type' => 'checkout.session.completed',
+        'data' => ['object' => [
+            'id' => 'cs_cancelled_webhook',
+            'payment_intent' => 'pi_cancelled',
+            'metadata' => ['order_id' => (string) $order->id],
+        ]],
+    ]);
+
     $service = new PaymentService();
     $service->handleWebhook(
-        json_encode([
-            'type' => 'checkout.session.completed',
-            'data' => ['object' => [
-                'id' => 'cs_cancelled_webhook',
-                'payment_intent' => 'pi_cancelled',
-                'metadata' => ['order_id' => (string) $order->id],
-            ]],
-        ]),
-        null
+        $payload,
+        stripeSignatureForPayload($payload, $secret)
     );
 
     $order->refresh();
@@ -955,9 +972,8 @@ it('webhook does not change cancelled order status', function () {
 
 it('duplicate webhook does not create duplicate kitchen tickets', function () {
     /** @var \Tests\TestCase $this */
-    $this->app['config']->set('stripe.webhook_secret', null);
-    $this->app->detectEnvironment(fn () => 'local');
-    $this->app['config']->set('stripe.skip_webhook_verification', true);
+    $secret = 'whsec_test_secret';
+    $this->app['config']->set('stripe.webhook_secret', $secret);
 
     $order = Order::factory()->create([
         'user_id' => User::factory()->create()->id,
@@ -976,8 +992,9 @@ it('duplicate webhook does not create duplicate kitchen tickets', function () {
     ]);
 
     $service = new PaymentService();
-    $service->handleWebhook($payload, null);
-    $service->handleWebhook($payload, null);
+    $signature = stripeSignatureForPayload($payload, $secret);
+    $service->handleWebhook($payload, $signature);
+    $service->handleWebhook($payload, $signature);
 
     $ticketCount = KitchenTicket::where('order_id', $order->id)->count();
     expect($ticketCount)->toBe(1);
@@ -1007,24 +1024,16 @@ it('does not alter safe CSV cells', function () {
 
 // --- Webhook Verification Strictness ---
 
-it('allows webhook bypass in local env with flag and no signature', function () {
+it('rejects webhook in local env with bypass flag and no signature', function () {
     /** @var \Tests\TestCase $this */
     $this->app->detectEnvironment(fn () => 'local');
-    config(['stripe.webhook_secret' => null]);
+    config(['stripe.webhook_secret' => 'whsec_test_secret']);
     config(['stripe.skip_webhook_verification' => true]);
 
     $service = new PaymentService();
-    $result = $service->handleWebhook(
-        json_encode([
-            'type' => 'checkout.session.completed',
-            'data' => ['object' => [
-                'metadata' => ['order_id' => '1'],
-            ]],
-        ]),
-        null
-    );
 
-    expect($result['status'])->toBe('order_not_found');
+    expect(fn () => $service->handleWebhook('{"type":"checkout.session.completed"}', null))
+        ->toThrow(Exception::class, 'Invalid webhook signature.');
 });
 
 it('rejects webhook with invalid signature even in local env with flag', function () {
@@ -1085,4 +1094,166 @@ it('rejects webhook in production env without signature', function () {
 
     expect(fn () => $service->handleWebhook('{"type":"checkout.session.completed"}', null))
         ->toThrow(Exception::class, 'Webhook secret not configured.');
+});
+
+it('rejects webhook requests at controller level when signature is missing', function () {
+    config(['stripe.webhook_secret' => 'whsec_test_secret']);
+
+    $response = $this->postJson(route('webhook.stripe'), [
+        'type' => 'checkout.session.completed',
+    ]);
+
+    $response->assertStatus(400)
+        ->assertJsonFragment(['error' => 'Invalid webhook signature.']);
+});
+
+it('accepts valid signed webhook requests and dispatches async job', function () {
+    Queue::fake();
+    $secret = 'whsec_test_secret';
+    config(['stripe.webhook_secret' => $secret]);
+
+    $payload = json_encode([
+        'type' => 'checkout.session.completed',
+        'data' => ['object' => ['metadata' => ['order_id' => '123']]],
+    ]);
+
+    $response = $this->call(
+        'POST',
+        route('webhook.stripe'),
+        [],
+        [],
+        [],
+        ['HTTP_STRIPE_SIGNATURE' => stripeSignatureForPayload($payload, $secret), 'CONTENT_TYPE' => 'application/json'],
+        $payload
+    );
+
+    $response->assertStatus(202)
+        ->assertJsonFragment(['status' => 'received']);
+
+    Queue::assertPushed(ProcessPaymentWebhook::class);
+});
+
+it('stores new payment screenshots on private local disk', function () {
+    $user = User::factory()->create();
+    $order = Order::factory()->create([
+        'user_id' => $user->id,
+        'payment_method' => 'kbz_pay',
+        'payment_status' => 'pending',
+        'status' => 'pending',
+    ]);
+
+    $this->withoutMiddleware(\App\Http\Middleware\ValidatePaymentScreenshot::class);
+
+    $response = $this->actingAs($user)->post(route('orders.upload-payment', $order->id), [
+        'screenshot' => UploadedFile::fake()->createWithContent('receipt.jpg', 'test-image-content'),
+        'reference' => 'REF-123',
+    ]);
+
+    $response->assertRedirect();
+
+    $order->refresh();
+    expect($order->payment_screenshot)->not->toBeNull();
+
+    $privatePath = storage_path('app/private/'.$order->payment_screenshot);
+    $legacyPublicPath = storage_path('app/public/'.$order->payment_screenshot);
+
+    expect(file_exists($privatePath))->toBeTrue()
+        ->and(file_exists($legacyPublicPath))->toBeFalse();
+
+    @unlink($privatePath);
+});
+
+it('serves legacy public payment screenshots through authenticated route', function () {
+    $user = User::factory()->create();
+    $order = Order::factory()->create([
+        'user_id' => $user->id,
+        'payment_method' => 'kbz_pay',
+        'payment_status' => 'awaiting_verification',
+        'status' => 'pending',
+    ]);
+
+    $relativePath = 'payments/'.$order->id.'/legacy.jpg';
+    $absolutePath = storage_path('app/public/'.$relativePath);
+    File::ensureDirectoryExists(dirname($absolutePath));
+    file_put_contents($absolutePath, 'legacy-image');
+
+    $order->update(['payment_screenshot' => $relativePath]);
+
+    $response = $this->actingAs($user)->get(route('orders.view-screenshot', $order->id));
+
+    $response->assertOk();
+
+    @unlink($absolutePath);
+});
+
+it('denies unauthorized payment screenshot access', function () {
+    $owner = User::factory()->create();
+    $otherUser = User::factory()->create();
+    $order = Order::factory()->create([
+        'user_id' => $owner->id,
+        'payment_screenshot' => 'payments/1/test.jpg',
+    ]);
+
+    $response = $this->actingAs($otherUser)->get(route('orders.view-screenshot', $order->id));
+
+    $response->assertForbidden();
+});
+
+it('uses optimistic guard to prevent stale order cancellation', function () {
+    $user = User::factory()->create();
+    $order = Order::factory()->create([
+        'user_id' => $user->id,
+        'status' => 'preparing',
+        'delivery_status' => Order::DELIVERY_STATUS_PENDING,
+    ]);
+
+    $response = $this->actingAs($user)->post(route('orders.cancel', $order->id));
+
+    $response->assertRedirect();
+    $response->assertSessionHas('error', 'Order status has changed. Please refresh and try again.');
+
+    $order->refresh();
+    expect($order->status)->toBe('preparing');
+});
+
+it('applies throttle middleware to customer login route', function () {
+    $route = app('router')->getRoutes()->match(\Illuminate\Http\Request::create('/login', 'POST'));
+
+    expect($route->gatherMiddleware())->toContain('throttle:10,1');
+});
+
+it('applies throttle middleware to protected order and menu api routes', function () {
+    $ordersRoute = app('router')->getRoutes()->getByName('api.orders');
+    $menuRoute = app('router')->getRoutes()->getByName('api.menu');
+
+    expect($ordersRoute->gatherMiddleware())->toContain('throttle:60,1')
+        ->and($menuRoute->gatherMiddleware())->toContain('throttle:60,1');
+});
+
+it('rejects duplicate Stripe webhook events', function () {
+    $secret = 'whsec_' . str_repeat('a', 24);
+    config(['stripe.webhook_secret' => $secret]);
+
+    $eventId = 'evt_test_duplicate_' . uniqid();
+
+    // First event - insert record manually to simulate already-processed event
+    \App\Models\StripeWebhookEvent::create([
+        'stripe_event_id' => $eventId,
+        'processed_at' => now(),
+        'event_type' => 'checkout.session.completed',
+    ]);
+
+    // Second event with same ID - should return duplicate status
+    $payload = json_encode([
+        'id' => $eventId,
+        'type' => 'checkout.session.completed',
+        'data' => ['object' => ['id' => 'cs_test', 'metadata' => ['order_id' => '99999']]],
+    ]);
+
+    $service = new PaymentService();
+    $signature = stripeSignatureForPayload($payload, $secret);
+    $result = $service->handleWebhook($payload, $signature);
+
+    expect($result['status'])->toBe('duplicate')
+        ->and($result['event_id'])->toBe($eventId);
 });

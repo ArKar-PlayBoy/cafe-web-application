@@ -1,8 +1,10 @@
 <?php
 
+use App\Jobs\CheckLowStockAlert;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Console\Scheduling\Schedule;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -11,6 +13,13 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->job(new CheckLowStockAlert())
+            ->dailyAt('08:00')
+            ->withoutOverlapping()
+            ->onOneServer()
+            ->appendOutputTo(storage_path('logs/schedule.log'));
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         // Exclude the Stripe webhook from CSRF verification
         $middleware->validateCsrfTokens(except: [

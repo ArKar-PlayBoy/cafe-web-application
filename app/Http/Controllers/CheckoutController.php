@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\OrderCreated;
 use App\Http\Requests\CheckoutRequest;
+use App\Jobs\ProcessPaymentWebhook;
 use App\Models\Cart;
 use App\Models\KitchenTicket;
 use App\Models\Order;
@@ -387,16 +388,27 @@ class CheckoutController extends Controller
         $signature = $request->header('stripe-signature');
 
         try {
-            $result = $this->paymentService->handleWebhook($payload, $signature);
-
-            Log::info('Stripe webhook handled', $result);
-
-            return response()->json(['status' => 'success']);
+            // Fail-closed before queueing so Stripe gets deterministic HTTP feedback.
+            $this->paymentService->verifyAndParseWebhookEvent($payload, $signature);
         } catch (\Exception $e) {
-            Log::error('Stripe webhook error: '.$e->getMessage());
+            // Always log full details server-side for debugging
+            Log::warning('Stripe webhook rejected before queue dispatch', [
+                'message' => $e->getMessage(),
+                'ip' => $request->ip(),
+            ]);
 
-            return response()->json(['error' => 'Webhook handler failed'], 400);
+            // Return generic message in production to avoid leaking details
+            $errorMessage = app()->isProduction()
+                ? 'Webhook verification failed'
+                : $e->getMessage();
+
+            return response()->json(['error' => $errorMessage], 400);
         }
+
+        // Dispatch to queue for async processing
+        ProcessPaymentWebhook::dispatch($payload, $signature);
+
+        return response()->json(['status' => 'received'], 202);
     }
 
     /**
@@ -492,6 +504,9 @@ class CheckoutController extends Controller
                 );
 
                 Cart::where('user_id', Auth::id())->delete();
+
+                // Fire OrderCreated event (same as other payment paths to trigger confirmation email)
+                event(new OrderCreated($order));
 
                 Log::info('Stripe payment verified via verifyPayment', [
                     'order_id' => $order->id,

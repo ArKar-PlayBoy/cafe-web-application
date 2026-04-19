@@ -15,7 +15,15 @@ use App\Listeners\SendOrderStatusUpdate;
 use App\Models\Cart;
 use App\Models\Category;
 use App\Models\MenuItem;
+use App\Models\Order;
+use App\Models\Reservation;
+use App\Models\StockItem;
 use App\Models\User;
+use App\Observers\MenuItemObserver;
+use App\Observers\OrderObserver;
+use App\Observers\ReservationObserver;
+use App\Observers\StockItemObserver;
+use App\Observers\UserObserver;
 use App\Services\PermissionService;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -23,6 +31,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\Eloquent\Model;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -39,6 +48,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Prevent lazy loading in non-production environments
+        Model::preventLazyLoading(! in_array(config('app.env'), ['production'], true));
+
         $this->configureRateLimiting();
 
         Event::listen(
@@ -71,6 +83,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Register model-specific Gates
         $this->registerModelGates();
+
+        // Register observers
+        $this->registerObservers();
 
         // Share navbar cart count once per request for the customer layout.
         View::composer('layouts.app', function ($view) {
@@ -177,5 +192,14 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('approve-critical', function (User $user) {
             return $user->isSuperAdmin() && $user->hasPermission('system.approve_critical');
         });
+    }
+
+    protected function registerObservers(): void
+    {
+        User::observe(UserObserver::class);
+        Order::observe(OrderObserver::class);
+        MenuItem::observe(MenuItemObserver::class);
+        StockItem::observe(StockItemObserver::class);
+        Reservation::observe(ReservationObserver::class);
     }
 }

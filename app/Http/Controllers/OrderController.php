@@ -63,7 +63,7 @@ class OrderController extends Controller
             $extension = $screenshot->getClientOriginalExtension() ?: 'jpg';
             $filename = \Illuminate\Support\Str::uuid().'.'.strtolower($extension);
             $path = 'payments/'.$order->id;
-            $screenshotPath = $screenshot->storeAs($path, $filename, 'public');
+            $screenshotPath = $screenshot->storeAs($path, $filename, 'local');
         }
 
         $order->update([
@@ -87,18 +87,24 @@ class OrderController extends Controller
             abort(403);
         }
 
-        if ($order->status !== 'pending') {
-            return back()->with('error', 'Only pending orders can be cancelled.');
-        }
-
-        if ($order->delivery_status === Order::DELIVERY_STATUS_OUT_FOR_DELIVERY) {
-            return back()->with('error', 'Order is already out for delivery and cannot be cancelled. Please contact support.');
-        }
-
-        $order->update([
+        $updated = Order::where('id', $order->id)
+            ->where('user_id', auth()->id())
+            ->where('status', 'pending')
+            ->where('delivery_status', '!=', Order::DELIVERY_STATUS_OUT_FOR_DELIVERY)
+            ->update([
             'status' => 'cancelled',
             'cancelled_by' => auth()->id(),
         ]);
+
+        if (! $updated) {
+            $freshOrder = Order::find($order->id);
+
+            if ($freshOrder && $freshOrder->delivery_status === Order::DELIVERY_STATUS_OUT_FOR_DELIVERY) {
+                return back()->with('error', 'Order is already out for delivery and cannot be cancelled. Please contact support.');
+            }
+
+            return back()->with('error', 'Order status has changed. Please refresh and try again.');
+        }
 
         return redirect()->route('orders')->with('success', 'Order cancelled successfully.');
     }
@@ -113,18 +119,40 @@ class OrderController extends Controller
             abort(404);
         }
 
-        // Sanitize path to prevent directory traversal
-        $filename = basename($order->payment_screenshot);
-        $directory = dirname($order->payment_screenshot);
-        // Only allow paths within the expected storage directory
-        $safePath = storage_path('app/public/'.$directory.'/'.$filename);
-        $realPath = realpath($safePath);
-        $allowedBase = realpath(storage_path('app/public'));
+        $realPath = $this->resolvePaymentScreenshotPath($order->payment_screenshot);
 
-        if (! $realPath || ! $allowedBase || ! str_starts_with($realPath, $allowedBase)) {
+        if (! $realPath) {
             abort(404);
         }
 
         return response()->file($realPath);
+    }
+
+    private function resolvePaymentScreenshotPath(string $storedPath): ?string
+    {
+        $filename = basename($storedPath);
+        $directory = trim(dirname($storedPath), '.\\/') ?: '';
+        $privateCandidate = storage_path('app/private/'.($directory ? $directory.'/' : '').$filename);
+        $legacyPublicCandidate = storage_path('app/public/'.($directory ? $directory.'/' : '').$filename);
+
+        $allowedBases = array_filter([
+            realpath(storage_path('app/private')),
+            realpath(storage_path('app/public')),
+        ]);
+
+        foreach ([$privateCandidate, $legacyPublicCandidate] as $candidate) {
+            $realPath = realpath($candidate);
+            if (! $realPath) {
+                continue;
+            }
+
+            foreach ($allowedBases as $allowedBase) {
+                if (str_starts_with($realPath, $allowedBase)) {
+                    return $realPath;
+                }
+            }
+        }
+
+        return null;
     }
 }

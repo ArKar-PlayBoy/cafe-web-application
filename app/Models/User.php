@@ -57,6 +57,16 @@ class User extends Authenticatable
         return $this->hasMany(SocialAccount::class);
     }
 
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(Reservation::class);
+    }
+
     public function directPermissions(): BelongsToMany
     {
         return $this->belongsToMany(Permission::class, 'user_permission');

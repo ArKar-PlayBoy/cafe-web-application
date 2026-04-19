@@ -7,6 +7,7 @@ use App\Exceptions\PaymentMethodOwnershipException;
 use App\Models\Cart;
 use App\Models\KitchenTicket;
 use App\Models\Order;
+use App\Models\StripeWebhookEvent;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Stripe\Checkout\Session as StripeSession;
@@ -281,78 +282,101 @@ class PaymentService
     }
 
     /**
+     * Validate webhook signature/secret and return normalized Stripe event payload.
+     */
+    public function verifyAndParseWebhookEvent(string $payload, ?string $signature): array
+    {
+        $webhookSecret = config('stripe.webhook_secret');
+        $secretNotConfigured = is_null($webhookSecret) || $webhookSecret === '' || $webhookSecret === 'whsec_your_webhook_secret_here';
+
+        if ($secretNotConfigured) {
+            Log::error('Stripe webhook secret is not configured. Webhook processing aborted.');
+            throw new \Exception('Webhook secret not configured.');
+        }
+
+        if (empty($signature)) {
+            throw new \Exception('Invalid webhook signature.');
+        }
+
+        try {
+            $stripeEvent = Webhook::constructEvent($payload, $signature, $webhookSecret);
+
+            return json_decode(json_encode($stripeEvent), true);
+        } catch (SignatureVerificationException $e) {
+            Log::warning('Stripe webhook signature verification failed: '.$e->getMessage());
+            throw new \Exception('Invalid webhook signature.');
+        } catch (\UnexpectedValueException $e) {
+            Log::warning('Invalid webhook payload: '.$e->getMessage());
+            throw new \Exception('Invalid webhook payload.');
+        }
+    }
+
+    /**
      * Handle webhook events from Stripe.
      * Verifies the Stripe-Signature header using the official SDK.
-     * Verification bypass is allowed only in local/testing when all of the following are true:
-     * - skip_webhook_verification is enabled
-     * - webhook secret is not configured
-     * - no signature header is present
      */
     public function handleWebhook(string $payload, ?string $signature): array
     {
-        $webhookSecret = config('stripe.webhook_secret');
-        $isLocalOrTesting = in_array(app()->environment(), ['local', 'testing'], true);
-        $skipFlag = config('stripe.skip_webhook_verification', false);
-        $secretNotConfigured = is_null($webhookSecret) || $webhookSecret === '' || $webhookSecret === 'whsec_your_webhook_secret_here';
-        $hasSignature = ! empty($signature);
-
-        // Strict bypass: only when ALL are true:
-        // 1. local/testing environment
-        // 2. explicit skip flag is true
-        // 3. no signature header present
-        // 4. webhook secret is not configured
-        $allowBypass = $isLocalOrTesting && $skipFlag && ! $hasSignature && $secretNotConfigured;
-
-        if ($allowBypass) {
-            Log::info('Stripe webhook: skipping signature verification (local/testing bypass, no signature present)');
-
-            try {
-                $event = json_decode($payload, true);
-            } catch (\UnexpectedValueException $e) {
-                Log::warning('Invalid webhook payload: '.$e->getMessage());
-                throw new \Exception('Invalid webhook payload.');
-            }
-        } else {
-            if (! $hasSignature && ! $secretNotConfigured) {
-                throw new \Exception('Invalid webhook signature.');
-            }
-
-            if ($secretNotConfigured) {
-                Log::error('Stripe webhook secret is not configured. Webhook processing aborted.');
-                throw new \Exception('Webhook secret not configured.');
-            }
-
-            try {
-                $stripeEvent = Webhook::constructEvent($payload, $signature, $webhookSecret);
-                $event = json_decode(json_encode($stripeEvent), true);
-            } catch (SignatureVerificationException $e) {
-                Log::warning('Stripe webhook signature verification failed: '.$e->getMessage());
-                throw new \Exception('Invalid webhook signature.');
-            } catch (\UnexpectedValueException $e) {
-                Log::warning('Invalid webhook payload: '.$e->getMessage());
-                throw new \Exception('Invalid webhook payload.');
-            }
-        }
+        $event = $this->verifyAndParseWebhookEvent($payload, $signature);
 
         if (! $event || ! isset($event['type'])) {
             return ['status' => 'invalid_event'];
         }
 
-        switch ($event['type']) {
-            case 'checkout.session.completed':
-                return $this->handleCheckoutCompleted($event['data']['object']);
+        // Stripe event deduplication - insert-after-success pattern
+        $eventId = $event['id'] ?? null;
 
-            case 'setup_intent.succeeded':
-                return $this->handleSetupIntentSucceeded($event['data']['object']);
+        if ($eventId) {
+            try {
+                // Try to insert - if duplicate, this will throw unique constraint violation
+                StripeWebhookEvent::create([
+                    'stripe_event_id' => $eventId,
+                    'processed_at' => now(),
+                    'event_type' => $event['type'],
+                    'payload_hash' => md5($payload),
+                ]);
+            } catch (\Illuminate\Database\QueryException $e) {
+                // Unique constraint violation = duplicate event
+                if ($e->getCode() === 23000 || str_contains($e->getMessage(), 'Duplicate entry')) {
+                    Log::info('Duplicate Stripe event ignored', ['event_id' => $eventId]);
 
-            case 'payment_intent.succeeded':
-                return $this->handlePaymentSucceeded($event['data']['object']);
+                    return ['status' => 'duplicate', 'event_id' => $eventId];
+                }
+                // Re-throw other database errors
+                throw $e;
+            }
+        }
 
-            case 'payment_intent.payment_failed':
-                return $this->handlePaymentFailed($event['data']['object']);
+        // Process event - rollback on failure so Stripe can retry
+        try {
+            switch ($event['type']) {
+                case 'checkout.session.completed':
+                    return $this->handleCheckoutCompleted($event['data']['object']);
 
-            default:
-                return ['status' => 'unhandled_event', 'type' => $event['type']];
+                case 'setup_intent.succeeded':
+                    return $this->handleSetupIntentSucceeded($event['data']['object']);
+
+                case 'payment_intent.succeeded':
+                    return $this->handlePaymentSucceeded($event['data']['object']);
+
+                case 'payment_intent.payment_failed':
+                    return $this->handlePaymentFailed($event['data']['object']);
+
+                default:
+                    return ['status' => 'unhandled_event', 'type' => $event['type']];
+            }
+        } catch (\Exception $e) {
+            // Remove processed event record so Stripe can retry
+            if ($eventId) {
+                StripeWebhookEvent::where('stripe_event_id', $eventId)->delete();
+            }
+
+            Log::error('Stripe webhook processing failed, event will be retried', [
+                'event_id' => $eventId,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
         }
     }
 

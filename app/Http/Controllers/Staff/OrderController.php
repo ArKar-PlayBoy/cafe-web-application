@@ -140,9 +140,10 @@ class OrderController extends Controller
             'staff_id' => auth('staff')->id(),
         ]);
 
-        // Create kitchen ticket after payment verified
-        KitchenTicket::create([
+        // Create kitchen ticket after payment verified (idempotent)
+        KitchenTicket::firstOrCreate([
             'order_id' => $order->id,
+        ], [
             'status' => 'new',
         ]);
 
@@ -190,18 +191,41 @@ class OrderController extends Controller
             abort(404);
         }
 
-        // Sanitize path to prevent directory traversal
-        $filename = basename($order->payment_screenshot);
-        $directory = dirname($order->payment_screenshot);
-        $safePath = storage_path('app/public/'.$directory.'/'.$filename);
-        $realPath = realpath($safePath);
-        $allowedBase = realpath(storage_path('app/public'));
+        $realPath = $this->resolvePaymentScreenshotPath($order->payment_screenshot);
 
-        if (! $realPath || ! $allowedBase || ! str_starts_with($realPath, $allowedBase)) {
+        if (! $realPath) {
             abort(404);
         }
 
         return response()->file($realPath);
+    }
+
+    private function resolvePaymentScreenshotPath(string $storedPath): ?string
+    {
+        $filename = basename($storedPath);
+        $directory = trim(dirname($storedPath), '.\\/') ?: '';
+        $privateCandidate = storage_path('app/private/'.($directory ? $directory.'/' : '').$filename);
+        $legacyPublicCandidate = storage_path('app/public/'.($directory ? $directory.'/' : '').$filename);
+
+        $allowedBases = array_filter([
+            realpath(storage_path('app/private')),
+            realpath(storage_path('app/public')),
+        ]);
+
+        foreach ([$privateCandidate, $legacyPublicCandidate] as $candidate) {
+            $realPath = realpath($candidate);
+            if (! $realPath) {
+                continue;
+            }
+
+            foreach ($allowedBases as $allowedBase) {
+                if (str_starts_with($realPath, $allowedBase)) {
+                    return $realPath;
+                }
+            }
+        }
+
+        return null;
     }
 
     public function outForDelivery(Order $order)

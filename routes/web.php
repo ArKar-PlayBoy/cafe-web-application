@@ -39,7 +39,9 @@ Route::get('/', function () {
 Route::post('/newsletter/subscribe', [NewsletterController::class, 'subscribe'])->name('newsletter.subscribe');
 
 // Stripe webhook - NO auth, but signature-verified inside the controller
-Route::post('/webhook/stripe', [CheckoutController::class, 'handleWebhook'])->name('webhook.stripe');
+// Rate limited to 60/min to prevent abuse
+Route::post('/webhook/stripe', [CheckoutController::class, 'handleWebhook'])->name('webhook.stripe')
+    ->middleware('throttle:60,1');
 
 Route::middleware(['auth', EnsureUserIsNotBanned::class, 'verified'])->group(function () {
     Route::get('/dashboard', fn () => view('customer.dashboard'))->name('dashboard');
